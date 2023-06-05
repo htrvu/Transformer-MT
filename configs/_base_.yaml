@@ -1,0 +1,19 @@
+VOCAB_SIZE: 
+  INPUT: 10000    # English
+  TARGET: 10000   # Vietnamese
+
+ENCODER:
+  N_LAYERS: 6
+  N_HEADS: 8
+  D_MODEL: 512
+  D_FFN: 2048
+  DROPOUT: 0.1
+  EPS: 0.1
+
+DECODER:
+  N_LAYERS: 6
+  N_HEADS: 8
+  D_MODEL: 512
+  D_FFN: 2048
+  DROPOUT: 0.1
+  EPS: 0.1
