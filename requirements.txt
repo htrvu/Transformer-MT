@@ -5,3 +5,11 @@ seaborn
 
 # Demo app
 streamlit
+
+# Data preprocessing
+spacy==3.0.9
+type-extensions==4.4.0
+torchtext==0.10.0
+# https://gitlab.com/trungtv/vi_spacy/-/raw/master/vi_core_news_lg/dist/vi_core_news_lg-0.0.1.tar.gz
+en_core_web_sm
+
