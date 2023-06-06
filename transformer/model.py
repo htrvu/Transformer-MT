@@ -63,7 +63,7 @@ class Transformer(nn.Module):
             - The output tensor in shape (batch_size, targ_length)
         '''
         # Generate the masks for encoder and decoder
-        enc_padding_mask, dec_look_ahead_mask ,cross_padding_mask = gen_mask(inp, targ)
+        enc_padding_mask, dec_look_ahead_mask, cross_padding_mask = gen_mask(inp, targ)
 
         # Pass throgh encoder
         enc_output, enc_attn_weights_dict = self.encoder(inp, enc_padding_mask)
