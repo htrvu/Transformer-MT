@@ -2,8 +2,7 @@ from torchtext.data.metrics import bleu_score
 from torchtext.legacy.data import Field
 import torch.nn as nn
 
-from utils import translate_sentence
-from typing import List
+from typing import List, Callable
 
 def bleu(
     valid_src: List[str],
@@ -14,6 +13,7 @@ def bleu(
     device: str,
     k: int,
     max_len: int,
+    callback: Callable
 ) -> float:
     """Calculate BLEU score
 
@@ -26,12 +26,13 @@ def bleu(
         - device (str): Device to run model (e.g. cuda:0, cpu)
         - k (int): Number of beams
         - max_len (int): Maximum length of sentence
+        - callback (Callable): Callback function to be called after each epoch
 
     Returns: float: BLEU score
     """
     pred_sentences = []
     for sentence in valid_src:
-        pred_trg = translate_sentence(
+        pred_trg = callback(
             sentence, model, src_field, trg_field, device, k, max_len
         )
         pred_sentences.append(pred_trg)

@@ -87,11 +87,13 @@ class DataWrapper:
             eos_token="<eos>",
         )
 
-    def create_dataset(self, src_data, trg_data, is_train=True):
+    def create_dataset(self, src_data: List[str], trg_data: List[str], is_train: bool = True):
         """
         Create dataset and iterator
 
         Args:
+            src_data (List[str]): source data
+            trg_data (List[str]): target data
             is_train (bool, optional): identify train/val split. Defaults to True.
         """
         print("Creating dataset and iterator... ")
