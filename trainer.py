@@ -1,11 +1,15 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
+import torch.nn.functional as F
 
 from torchtext.legacy.data import Field, Batch, Iterator
 
 from typing import Callable, Type, Dict
 
 from nltk.corpus import wordnet
+
+from transformer.helpers import gen_mask
 
 
 def get_synonym(token: str, vocab: Field) -> int:
@@ -24,10 +28,104 @@ def multiple_replace(dict: Dict, text: str) -> str:
     return regex.sub(lambda mo: dict[mo.string[mo.start() : mo.end()]], text)
 
 
+def generate(
+    src: Variable,
+    model: nn.Module,
+    src_field: Field,
+    trg_field: Field,
+    device: str,
+    k: int,
+    max_len: int,
+):
+    init_token = trg_field.vocab.stoi["<sos>"]
+    src_mask = (src != src_field.vocab.stoi["<pad>"]).unsqueeze(-2)
+
+    e_output = model.encoder(src, src_mask)
+
+    outputs = torch.LongTensor([[init_token]]).to(device)
+
+    _, trg_mask, _ = gen_mask(src, outputs)
+
+    out = model.final_ffn(model.decoder(outputs, e_output, trg_mask, src_mask))
+    out = F.softmax(out, dim=-1)
+
+    probs, ix = out[:, -1].data.topk(k)
+    log_scores = torch.Tensor([torch.log(prob) for prob in probs.data[0]]).unsqueeze(0)
+
+    outputs = torch.zeros(k, max_len).long().to(device)
+    outputs[:, 0] = init_token
+    outputs[:, 1] = ix[0]
+
+    e_outputs = torch.zeros(k, e_output.size(-2), e_output.size(-1)).to(device)
+    e_outputs[:, :] = e_output[0]
+
+    return outputs, e_outputs, log_scores
+
+
+def k_best_outputs(
+    outputs: Variable, out: Variable, log_scores: Variable, i: int, k: int
+):
+    probs, ix = out[:, -1].data.topk(k)
+    log_scores = torch.Tensor([torch.log(p) for p in probs.data.view(-1)]).view(
+        k, -1
+    ) + log_scores.transpose(0, 1)
+    k_probs, k_ix = log_scores.view(-1).topk(k)
+
+    row = k_ix // k
+    col = k_ix % k
+
+    outputs[:, :i] = outputs[row, :i]
+    outputs[:, i] = ix[row, col]
+
+    log_scores = k_probs.unsqueeze(0)
+
+    return outputs, log_scores
+
+
 def _beam_search(
-    src: str, model: nn.Module, trg_field: Field, device: str, k: int, max_len: int
-) -> str:
-    return None
+    src: Variable,
+    model: nn.Module,
+    src_field: Field,
+    trg_field: Field,
+    device: str,
+    k: int,
+    max_len: int,
+) -> Variable:
+    outputs, e_outputs, log_scores = generate(
+        src, model, src_field, trg_field, device, k, max_len
+    )
+    eos_tok = trg_field.vocab.stoi["<eos>"]
+    src_mask = (src != src_field.vocab.stoi["<pad>"]).unsqueeze(-2)
+    idx = None
+    for i in range(2, max_len):
+        _, trg_mask, _ = gen_mask(src, outputs[:, :i])
+        out = model.final_ffn(
+            model.decoder(outputs[:, :i], e_outputs, trg_mask, src_mask)
+        )
+        out = F.softmax(out, dim=-1)
+        outputs, log_scores = k_best_outputs(outputs, out, log_scores, i, k)
+        ones = (
+            outputs == eos_tok
+        ).nonzero()  # Occurrences of end symbols for all input sentences.
+        sentences_length = torch.zeros(len(outputs), dtype=torch.long).to(device)
+        for vec in ones:
+            i = vec[0]
+            if sentences_length[i] == 0:  # First end symbol has not been found yet
+                sentences_length[i] = vec[1]  # Position of end symbol
+        num_finished_sentences = len([s for s in sentences_length if s > 0])
+        if num_finished_sentences == k:
+            alpha = 0.7
+            div = 1 / (sentences_length.type_as(log_scores) ** alpha)
+            _, ind = torch.max(log_scores * div, 1)
+            idx = ind.data[0]
+            break
+
+    if idx is None:
+        length = (outputs[0] == eos_tok).nonzero()[0]
+        return " ".join([trg_field.vocab.itos[tok] for tok in outputs[0][1:length]])
+    else:
+        length = (outputs[idx] == eos_tok).nonzero()[0]
+        return " ".join([trg_field.vocab.itos[tok] for tok in outputs[idx][1:length]])
 
 
 class Trainer:
@@ -87,6 +185,9 @@ class Trainer:
 
         src = batch.src.transpose(0, 1).to(self.device)
         trg = batch.trg.transpose(0, 1).to(self.device)
+
+        print(src.shape, trg.shape)
+        print(src, trg)
 
         trg_input = trg[:, :-1]
 
@@ -196,10 +297,16 @@ class Trainer:
             else:
                 indexed.append(get_synonym(token, self.src_field.vocab))
 
-        sentence = torch.LongTensor(indexed).unsqueeze(0).to(self.device)
+        sentence = Variable(torch.LongTensor(indexed).unsqueeze(0).to(self.device))
 
         sentence = _beam_search(
-            sentence, model, self.trg_field, self.device, self.k, self.max_len
+            sentence,
+            model,
+            self.src_field,
+            self.trg_field,
+            self.device,
+            self.k,
+            self.max_len,
         )
 
         return multiple_replace(
@@ -271,5 +378,5 @@ if __name__ == "__main__":
         max_len=160,
         device="cpu",
     )
-
+    
     trainer.fit(train_iter, valid_iter, k=5)
