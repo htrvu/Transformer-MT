@@ -1,9 +1,9 @@
 import torch
 
 
-class LearningRateScheduler:
+class TransLRScheduler:
     """
-    Learning rate scheduler
+    Special learning rate scheduler for Transformer from the paper
     """
 
     def __init__(

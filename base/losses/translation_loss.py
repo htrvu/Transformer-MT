@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 
-class LabelSmoothingLoss(nn.Module):
+class TranslationLoss(nn.Module):
     """
-    Label smoothing loss function
+    Loss function for Machine Translation, using CrossEntropyLoss with label smoothing technique
     """
 
     def __init__(
@@ -24,7 +24,6 @@ class LabelSmoothingLoss(nn.Module):
         self.dim = dim
         self.padding_idx = padding_idx
 
-    @torch.no_grad()
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """Forward propagation
 
