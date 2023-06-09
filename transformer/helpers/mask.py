@@ -40,7 +40,7 @@ def _gen_look_ahead_mask(inp_len):
 
 def gen_mask(inp: torch.Tensor, targ: torch.Tensor):
     """
-    Generate masks for the givin input tensor and target tensor. There are 3 masks in the result:
+    Generate masks for the giving input tensor and target tensor. There are 3 masks in the result:
         - Encoder padding mask (base on input)
         - Look ahead mask (base on target)
         - Decoder padding mask (base on target)
