@@ -11,29 +11,34 @@ class Transformer(nn.Module):
     Transformer model.
     '''
 
-    def __init__(self, config_path: str = '../configs/_base_.yaml'):
+    def __init__(self, config_path: str = '../configs/_base_.yaml', src_vocab_size: int = 10000, trg_vocab_size: int = 10000):
         '''
         Args:
             - config_path (str): The path to the config file (default to '../configs/_base_.yaml')
+            - src_vocab_size (int): The size of source vocabulary (default to 10000)
+            - trg_vocab_size (int): The size of target vocabulary (default to 10000)
         '''
         super(Transformer, self).__init__()
 
         config_dict = load_config(config_path)
-        self.__parse_config(config_dict)
+        self.__parse_config(config_dict, src_vocab_size, trg_vocab_size)
 
         self.encoder = Encoder(**self.enc_config)
         self.decoder = Decoder(**self.dec_config)
 
         self.final_ffn = nn.Linear(self.dec_config['d_model'], self.dec_config['vocab_size'])
 
+        self.init_weights()
 
-    def __parse_config(self, config_dict: dict):
+
+    def __parse_config(self, config_dict: dict, src_vocab_size: int, trg_vocab_size: int):
         '''
         Parse the configuration of model from the config file
         '''
+        config_dict = config_dict['MODEL']
 
         self.enc_config = {
-            'vocab_size': config_dict['VOCAB_SIZE']['INPUT'],
+            'vocab_size': src_vocab_size,
             'n_enc_layers': config_dict['ENCODER']['N_LAYERS'],
             'n_heads': config_dict['ENCODER']['N_HEADS'],
             'd_model': config_dict['ENCODER']['D_MODEL'],
@@ -43,7 +48,7 @@ class Transformer(nn.Module):
         }
 
         self.dec_config = {
-            'vocab_size': config_dict['VOCAB_SIZE']['TARGET'],
+            'vocab_size': trg_vocab_size,
             'n_dec_layers': config_dict['DECODER']['N_LAYERS'],
             'n_heads': config_dict['DECODER']['N_HEADS'],
             'd_model': config_dict['DECODER']['D_MODEL'],
@@ -52,6 +57,15 @@ class Transformer(nn.Module):
             'eps': config_dict['DECODER']['EPS']
         }
     
+    
+    def init_weights(self):
+        '''
+        Initialize the weights of the model
+        '''
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
 
     def forward(self, inp: torch.Tensor, targ: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         '''

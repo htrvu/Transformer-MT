@@ -55,18 +55,18 @@ def gen_mask(inp: torch.Tensor, targ: torch.Tensor):
         - Cross padding mask in shape (batch_size, 1, 1, targ_len)
     """
     # Encoder padding mask
-    encoder_padding_mask = _gen_padding_mask(inp)
+    encoder_padding_mask = _gen_padding_mask(inp).to(inp.device)
 
     # Cross padding mask: Use for cross-attention for masking encoder output
-    cross_padding_mask = _gen_padding_mask(inp)
+    cross_padding_mask = _gen_padding_mask(inp).to(inp.device)
 
     # Look ahead padding mask
-    decoder_look_ahead_mask = _gen_look_ahead_mask(targ.shape[1])
+    decoder_look_ahead_mask = _gen_look_ahead_mask(targ.shape[1]).to(targ.device)
     # Decoder padding mask
-    decoder_inp_padding_mask = _gen_padding_mask(targ)
+    decoder_inp_padding_mask = _gen_padding_mask(targ).to(targ.device)
     # Update look ahead mask
     decoder_look_ahead_mask = torch.maximum(
-        decoder_look_ahead_mask, decoder_inp_padding_mask)
+        decoder_look_ahead_mask, decoder_inp_padding_mask).to(targ.device)
 
     return encoder_padding_mask, decoder_look_ahead_mask, cross_padding_mask
 

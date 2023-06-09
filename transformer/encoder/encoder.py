@@ -59,7 +59,7 @@ class Encoder(nn.Module):
         q_embedded *= torch.sqrt(torch.tensor(self.d_model, dtype=torch.float32))
         
         # Add positional encoding
-        positional_encoding = calc_positional_encoding(last_pos=q_length, d_model=self.d_model)
+        positional_encoding = calc_positional_encoding(last_pos=q_length, d_model=self.d_model).to(q.device)
         q_embedded += positional_encoding       # (..., q_length, d_model)
 
         # Dropout
