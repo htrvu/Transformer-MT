@@ -1,6 +1,5 @@
 from torchtext.legacy import data
 
-
 class MyIterator(data.Iterator):
     def create_batches(self):
         """
@@ -31,6 +30,7 @@ class MyIterator(data.Iterator):
 global max_src_in_batch, max_tgt_in_batch
 
 
+# TODO: wtf is this?
 def batch_size_fn(new, count, sofar):
     """
     Keep augmenting batch and calculate total number of tokens + padding.
