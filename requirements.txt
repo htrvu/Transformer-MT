@@ -1,18 +1,10 @@
-# AI-related stuff
 numpy
 matplotlib
 seaborn
-
-# Demo app
 streamlit
-
-# Data preprocessing
 spacy==3.0.9
-type-extensions==4.4.0
-torchtext==0.11.0
+typing-extensions==4.4.0
 https://gitlab.com/trungtv/vi_spacy/-/raw/master/vi_core_news_lg/dist/vi_core_news_lg-0.0.1.tar.gz
-en_core_web_sm==3.0.0
 nltk==3.8.1
-
-# utils
 pyyaml
+pyvi==0.1.1
