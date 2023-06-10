@@ -262,19 +262,19 @@ class Trainer:
                 if i % 100 == 0:
                     avg_loss = total_loss / 100
                     print(
-                        f"Epoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Loss: {avg_loss:.4f}",
+                        f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Loss: {avg_loss:.4f}",
                         end='\r'
                     )
                     total_loss = 0
 
-                    break
+                    break # TODO: uncomment this line to train
                 
             s = time.time()
 
             valid_loss = self.validate(valid_iter)
 
             print(
-                f"\nEpoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Valid Loss: {valid_loss:.4f}"
+                f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Train Loss: {avg_loss:.4f} | Valid Loss: {valid_loss:.4f}"
             )
 
         bleu_score = self.scorer(
@@ -319,7 +319,7 @@ class Trainer:
 
         sentence = _beam_search(
             sentence,
-            model,
+            self.model,
             self.src_field,
             self.trg_field,
             self.device,
@@ -331,71 +331,3 @@ class Trainer:
             {" ?": "?", " !": "!", " .": ".", "' ": "'", " ,": ","}, sentence
         )
 
-
-if __name__ == "__main__":
-    from base.losses.translation_loss import TranslationLoss
-    from base.metrics.bleu import bleu
-    from base.schedulers.trans_lr_scheduler import TransLRScheduler
-    from transformer.model import Transformer
-    from datasets.wrapper import TextDataWrapper
-    from utils import load_config
-
-    # Params
-    config_path = "./configs/_base_.yaml"
-    train_src_path = "./data/train.en"
-    train_trg_path = "./data/train.vi"
-    valid_src_path = "./data/tst2013.en"
-    valid_trg_path = "./data/tst2013.vi"
-    device = "cuda"
-
-    torch.manual_seed(0)
-
-    # Load config
-    config_dict = load_config(config_path)
-
-    # Load dataset
-    data_wrapper = TextDataWrapper(src_lang="en_core_web_sm", 
-                                   trg_lang="vi_core_news_lg", 
-                                   max_len=config_dict['DATA']['MAX_LEN'], 
-                                   batch_size=config_dict['DATA']['BATCH_SIZE'],
-                                   device=device)
-    train_dataloader = data_wrapper.create_dataloader(train_src_path, train_trg_path, is_train=True)
-    valid_dataloader = data_wrapper.create_dataloader(valid_src_path, valid_trg_path, is_train=False)
-    src_vocab_size = len(data_wrapper.src_field.vocab)
-    trg_vocab_size = len(data_wrapper.trg_field.vocab)
-
-    # Create model
-    model = Transformer(config_path=config_path,
-                        src_vocab_size=src_vocab_size,
-                        trg_vocab_size=trg_vocab_size)
-
-    # Optimizer and Loss function
-    optimizer = TransLRScheduler(
-        torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9),
-        init_lr=0.2,
-        d_model=config_dict['MODEL']['ENCODER']['D_MODEL'],
-        n_warmup_steps=1000,
-    )
-    criterion = TranslationLoss(
-        classes=trg_vocab_size,
-        padding_idx=data_wrapper.trg_field.vocab.stoi["<pad>"],
-        smoothing=0.1,
-    )
-
-    # Run
-    
-    num_epochs = 10
-    scorer = bleu
-    trainer = Trainer(
-        model=model,
-        optimizer=optimizer,
-        criterion=criterion,
-        num_epochs=num_epochs,
-        scorer=scorer,
-        src_field=data_wrapper.src_field,
-        trg_field=data_wrapper.trg_field,
-        max_len=config_dict['DATA']['MAX_LEN'],
-        device=device,
-    )
-    
-    trainer.fit(train_dataloader, valid_dataloader, k=5)
