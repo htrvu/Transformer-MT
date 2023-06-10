@@ -7,6 +7,9 @@ from torchtext.legacy.data import Field, Batch, Iterator
 
 from typing import Callable, Type, Dict
 
+import nltk
+nltk.download('wordnet')
+
 from nltk.corpus import wordnet
 
 from transformer.helpers import gen_mask
@@ -40,13 +43,14 @@ def generate(
     init_token = trg_field.vocab.stoi["<sos>"]
     src_mask = (src != src_field.vocab.stoi["<pad>"]).unsqueeze(-2)
 
-    e_output = model.encoder(src, src_mask)
+    e_output, _ = model.encoder(src, src_mask)
 
     outputs = torch.LongTensor([[init_token]]).to(device)
 
     _, trg_mask, _ = gen_mask(src, outputs)
 
-    out = model.final_ffn(model.decoder(outputs, e_output, trg_mask, src_mask))
+    out, _ = model.decoder(outputs, e_output, trg_mask, src_mask)
+    out = model.final_ffn(out)
     out = F.softmax(out, dim=-1)
 
     probs, ix = out[:, -1].data.topk(k)
@@ -71,8 +75,8 @@ def k_best_outputs(
     ) + log_scores.transpose(0, 1)
     k_probs, k_ix = log_scores.view(-1).topk(k)
 
-    row = k_ix // k
-    col = k_ix % k
+    row = torch.div(k_ix, k, rounding_mode="floor")
+    col = torch.fmod(k_ix, k)
 
     outputs[:, :i] = outputs[row, :i]
     outputs[:, i] = ix[row, col]
@@ -100,7 +104,7 @@ def _beam_search(
     for i in range(2, max_len):
         _, trg_mask, _ = gen_mask(src, outputs[:, :i])
         out = model.final_ffn(
-            model.decoder(outputs[:, :i], e_outputs, trg_mask, src_mask)
+            model.decoder(outputs[:, :i], e_outputs, trg_mask, src_mask)[0]
         )
         out = F.softmax(out, dim=-1)
         outputs, log_scores = k_best_outputs(outputs, out, log_scores, i, k)
@@ -121,7 +125,7 @@ def _beam_search(
             break
 
     if idx is None:
-        length = (outputs[0] == eos_tok).nonzero()[0]
+        length = (outputs[0] == eos_tok).nonzero()[0] if len((outputs[0] == eos_tok).nonzero()) > 0 else -1
         return " ".join([trg_field.vocab.itos[tok] for tok in outputs[0][1:length]])
     else:
         length = (outputs[idx] == eos_tok).nonzero()[0]
@@ -188,8 +192,6 @@ class Trainer:
 
         trg_input = trg[:, :-1]
 
-        # encoder_mask, decoder_mask, cross_mask = gen_mask(src, trg_input)
-
         preds, _, _ = self.model(src, trg_input)
 
         ys = trg[:, 1:].contiguous().view(-1)
@@ -221,7 +223,7 @@ class Trainer:
 
             trg_input = trg[:, :-1]
 
-            preds = self.model(src, trg_input)
+            preds, _, _ = self.model(src, trg_input)
 
             ys = trg[:, 1:].contiguous().view(-1)
 
@@ -244,6 +246,9 @@ class Trainer:
         """
         import time
 
+        val_src = [' '.join(x.src) for x in valid_iter.dataset.examples[:500]][1:]
+        val_trg = [' '.join(x.trg) for x in valid_iter.dataset.examples[:500]][1:]
+
         for epoch in range(self.num_epochs):
             total_loss = 0
 
@@ -257,35 +262,47 @@ class Trainer:
                 if i % 100 == 0:
                     avg_loss = total_loss / 100
                     print(
-                        f"Epoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Loss: {avg_loss:.4f}"
+                        f"Epoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Loss: {avg_loss:.4f}",
+                        end='\r'
                     )
                     total_loss = 0
 
+                    break
+                
             s = time.time()
 
             valid_loss = self.validate(valid_iter)
 
             print(
-                f"Epoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Valid Loss: {valid_loss:.4f}"
+                f"\nEpoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Valid Loss: {valid_loss:.4f}"
             )
-            # bleu_score = self.scorer(
-            #     valid_src_data[:500],
-            #     valid_trg_data[:500],
-            #     model,
-            #     self.src_field,
-            #     self.trg_field,
-            #     self.device,
-            #     k,
-            #     self.max_len,
-            #     callback=self.predict,
-            # )
 
-            # print(
-            #     f"Epoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Valid Loss: {valid_loss:.4f} | BLEU sore: {bleu_score:.4f}"
-            # )
+        bleu_score = self.scorer(
+            val_src,
+            val_trg,
+            self.trg_field,
+            k,
+            callback=self.predict,
+        )
+
+        # print(
+        #     f"\nEpoch: {epoch + 1} | Time: {time.time() - s:.2f}s | Valid Loss: {valid_loss:.4f} | BLEU score: {bleu_score:.4f}"
+        # )
+
+        print(f"BLEU score: {bleu_score:.4f}")
 
 
-    def predict(self, sentence: str) -> str:
+    def predict(self, sentence: str, k: int) -> str:
+        """
+        Predict a sentence
+
+        Args:
+            sentence (str): Sentence to be predicted
+            k (int): Beam size
+
+        Returns:
+            str: Predicted sentence
+        """
         self.model.eval()
 
         indexed = []
@@ -306,7 +323,7 @@ class Trainer:
             self.src_field,
             self.trg_field,
             self.device,
-            self.k,
+            k,
             self.max_len,
         )
 
@@ -330,6 +347,8 @@ if __name__ == "__main__":
     valid_src_path = "./data/tst2013.en"
     valid_trg_path = "./data/tst2013.vi"
     device = "cuda"
+
+    torch.manual_seed(0)
 
     # Load config
     config_dict = load_config(config_path)
@@ -364,6 +383,7 @@ if __name__ == "__main__":
     )
 
     # Run
+    
     num_epochs = 10
     scorer = bleu
     trainer = Trainer(
