@@ -17,7 +17,7 @@ MODEL:
 
 DATA:
   MAX_LEN: 160
-  BATCH_SIZE: 128
+  BATCH_SIZE: 256 # number of tokens in a batch
 
 # TODO: Other configs
 # OPTIM:
