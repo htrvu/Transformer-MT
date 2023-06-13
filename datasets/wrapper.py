@@ -1,3 +1,4 @@
+import torch
 import torchtext.legacy.data as data
 import os
 import pandas as pd
@@ -5,7 +6,7 @@ from datasets.iterator import MyIterator
 from datasets.tokenizer import Tokenizer
 from constants import *
 from datasets.utils import read_data
-
+import dill
 
 global max_src_in_batch, max_tgt_in_batch
 
@@ -120,6 +121,11 @@ class TextDataWrapper:
         if is_train:
             self.src_field.build_vocab(dataset, )
             self.trg_field.build_vocab(dataset)
+            print('Saving fields...')
+            dst_root = './fields'
+            os.makedirs(dst_root, exist_ok=True)
+            torch.save(self.src_field, os.path.join(dst_root, 'src_field.pt'), pickle_module=dill)
+            torch.save(self.trg_field, os.path.join(dst_root, 'trg_field.pt'), pickle_module=dill)
 
         print('Done')
         print('------------------------')

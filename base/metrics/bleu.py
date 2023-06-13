@@ -1,35 +1,18 @@
 from torchtext.data.metrics import bleu_score
-from torchtext.legacy.data import Field
-import torch.nn as nn
+from typing import List
 
-from typing import List, Callable
-
-from tqdm import tqdm
-
-def bleu(
-    valid_src: List[str],
-    valid_trg: List[str],
-    trg_field: Field,
-    k: int,
-    callback: Callable
+def calc_bleu(
+        pred_sentences: List[str],
+        trg_sentences: List[str],
+        max_n_gram: int = 4
 ) -> float:
-    """Calculate BLEU score
+    """Calculate BLEU score between predicted and target sentences
 
     Args:
-        - valid_src (List[str]): Valid source sentences
-        - valid_trg (List[str]): Valid target sentences
-        - trg_field (Field): Tokenizer for target language
-        - k (int): Number of beams
-        - callback (Callable): Callback function to be called after each epoch. 
+        - pred_sentences (List[str]): List of predicted sentences
+        - trg_sentences (List[str]): List of target sentences
+        - max_n_gram (int): Maximum n-gram to be used in BLEU score calculation
 
     Returns: float: BLEU score
     """
-    pred_sentences = []
-    for sentence in tqdm(valid_src):
-        pred_trg = callback(sentence, k)
-        pred_sentences.append(pred_trg)
-
-    pred_sentences = [trg_field.preprocess(sentence) for sentence in pred_sentences]
-    trg_sentences = [[sent.split()] for sent in valid_trg]
-
-    return bleu_score(pred_sentences, trg_sentences)
+    return bleu_score(pred_sentences, trg_sentences, max_n_gram)

@@ -135,4 +135,5 @@ dmypy.json
 # In this project
 data/*
 *.pth
+*.pt
 *personal*

@@ -19,5 +19,10 @@ DATA:
   MAX_LEN: 160
   BATCH_SIZE: 256 # number of tokens in a batch
 
-# TODO: Other configs
-# OPTIM:
+OPTIM:
+  INIT_LR: 0.2
+  N_WARMUP_STEPS: 1000
+
+TRAINER:
+  N_EPOCHS: 5
+

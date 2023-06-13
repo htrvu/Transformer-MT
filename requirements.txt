@@ -8,3 +8,4 @@ https://gitlab.com/trungtv/vi_spacy/-/raw/master/vi_core_news_lg/dist/vi_core_ne
 nltk==3.8.1
 pyyaml
 pyvi==0.1.1
+dill

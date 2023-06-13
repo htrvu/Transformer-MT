@@ -74,7 +74,7 @@ class Transformer(nn.Module):
             - targ (torch.Tensor): The target tensor in shape (batch_size, targ_length).
 
         Returns: Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]] The output tensor and attention weights of encoder and decoder
-            - The output tensor in shape (batch_size, targ_length)
+            - The output tensor in shape (batch_size, targ_length, trg_vocab_size)
         '''
         # Generate the masks for encoder and decoder
         enc_padding_mask, dec_look_ahead_mask, cross_padding_mask = gen_mask(inp, targ)
