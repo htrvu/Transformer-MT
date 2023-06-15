@@ -1,3 +1,5 @@
+import os
+import datetime
 import torch
 from base.losses.translation_loss import TranslationLoss
 from base.metrics.bleu import calc_bleu
@@ -20,7 +22,6 @@ if __name__ == "__main__":
             --valid_trg_path ./data/tst2013.vi \
             --device cuda:0
     """
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path", type=str, default="./configs/_base_.yaml")
     parser.add_argument("--train_src_path", type=str, default="./data/train.en")
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     parser.add_argument("--valid_src_path", type=str, default="./data/tst2013.en")
     parser.add_argument("--valid_trg_path", type=str, default="./data/tst2013.vi")
     parser.add_argument("--load_from", type=str, default=None, help="path to checkpoint to be loaded")
-    parser.add_argument("--ckpt_dir", type=str, default="./weights", help="directory to save checkpoints")
+    parser.add_argument("--out_dir", type=str, default="./runs", help="directory to save checkpoints")
     parser.add_argument("--device", type=str, default="cuda")
 
     args = parser.parse_args()
@@ -36,6 +37,7 @@ if __name__ == "__main__":
     try:
         # Load config
         config_dict = load_config(args.config_path)
+        print('Config:', config_dict)
 
         # Load dataset
         data_wrapper = TextDataWrapper(src_lang="en_core_web_sm", 
@@ -81,7 +83,15 @@ if __name__ == "__main__":
             device=args.device,
         )
         
-        trainer.fit(train_dataloader, valid_dataloader, ckpt_folder=args.ckpt_dir)
+        if args.out_dir == './runs':
+            now = datetime.datetime.now()
+            c = now.strftime("%Y-%m-%d_%H-%M-%S")
+            args.out_dir = os.path.join(args.out_dir, c)
+
+        start = datetime.datetime.now()
+        trainer.fit(train_dataloader, valid_dataloader, out_dir=args.out_dir)
+        end = datetime.datetime.now()
+        print('Training time:', end - start)
 
     except Exception as e:
         raise e

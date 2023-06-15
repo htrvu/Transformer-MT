@@ -1,8 +1,10 @@
 import os
 
+import json
 import torch
 import torch.nn as nn
 from torchtext.legacy.data import Field, Batch, Iterator
+import matplotlib.pyplot as plt
 import time
 from typing import Callable, Type, Dict
 
@@ -113,7 +115,7 @@ class Trainer:
 
         return avg_loss
 
-    def fit(self, train_iter: Iterator, valid_iter: Iterator, beam_size: int = 1, ckpt_folder: str = './weights', log_interval: int = 50) -> None:
+    def fit(self, train_iter: Iterator, valid_iter: Iterator, beam_size: int = 1, out_dir: str = './weights', log_interval: int = 50) -> None:
         """
         Fit model
 
@@ -123,38 +125,51 @@ class Trainer:
             k (int): Beam size
         """
         print('Start training...')
-        print('The checkpoints will be saved at', ckpt_folder)
-        os.makedirs(ckpt_folder, exist_ok=True)
+        print('The checkpoints and logs will be saved at', out_dir)
+        os.makedirs(out_dir, exist_ok=True)
 
+        loss_log = []
         min_valid_loss = float('inf')
         for epoch in range(self.num_epochs):
             # Train
-            total_loss = 0
+            epoch_loss = 0
+            cnt = 0
+            iter_loss = 0
             s = time.time()
             for i, batch in enumerate(train_iter):
                 loss = self.step(batch)
-                total_loss += loss.item()
+                iter_loss += loss.item()
+                epoch_loss += loss.item()
+                cnt += 1
 
                 if i % log_interval == 0:
-                    avg_loss = total_loss / log_interval
+                    avg_loss = iter_loss / log_interval
                     print(
                         f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Loss: {avg_loss:.4f}",
                         end='\r'
                     )
-                    total_loss = 0
+                    iter_loss = 0
+
+            avg_loss = epoch_loss / cnt
 
             # Validate
             s = time.time()
             valid_loss = self.validate(valid_iter)
+            
             print(
                 f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Train Loss: {avg_loss:.4f} | Valid Loss: {valid_loss:.4f}"
             )
+            loss_log.append({
+                'epoch': epoch + 1,
+                'train_loss': avg_loss,
+                'val_loss': valid_loss
+            })
 
             # Save checkpoint
             if valid_loss < min_valid_loss:
                 min_valid_loss = valid_loss
-                torch.save(self.model.state_dict(), f'{ckpt_folder}/best.pt')
-            torch.save(self.model.state_dict(), f'{ckpt_folder}/last.pt')
+                torch.save(self.model.state_dict(), f'{out_dir}/best.pt')
+            torch.save(self.model.state_dict(), f'{out_dir}/last.pt')
 
 
         # Only calculate BLEU on first 500 sentences of validation set
@@ -172,3 +187,20 @@ class Trainer:
         bleu_score = self.metric(pred_sentences, trg_sentences)
 
         print(f"BLEU score: {bleu_score:.4f}")
+
+        with open(os.path.join(out_dir, 'log.json'), 'w') as f:
+            json.dump(loss_log, f, indent=4)
+
+        train_loss = []
+        val_loss = []
+        for epoch in loss_log:
+            train_loss.append(epoch['train_loss'])
+            val_loss.append(epoch['val_loss'])
+
+        # Plot
+        plt.plot(train_loss, label='train_loss')
+        plt.plot(val_loss, label='val_loss')
+        plt.legend()
+        plt.xlabel('Epoch')
+        # Save
+        plt.savefig(os.path.join(out_dir, 'plot.png'))
