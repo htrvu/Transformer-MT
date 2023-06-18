@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from transformer.encoder import Encoder
 from transformer.decoder import Decoder
-from transformer.helpers import gen_mask
 from utils import *
 from typing import Tuple, Dict
 
@@ -65,25 +64,31 @@ class Transformer(nn.Module):
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
+                # nn.init.kaiming_uniform(p)
 
 
-    def forward(self, inp: torch.Tensor, targ: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    def forward(self, 
+                enc_input: torch.Tensor, 
+                dec_input: torch.Tensor, 
+                enc_padding_mask: torch.Tensor = None, 
+                dec_look_ahead_mask: torch.Tensor = None) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         '''
         Args:
-            - inp (torch.Tensor): The input tensor in shape (batch_size, inp_length).
-            - targ (torch.Tensor): The target tensor in shape (batch_size, targ_length).
+            - enc_input (torch.Tensor): The encoder input tensor in shape (batch_size, enc_inp_length).
+            - dec_input (torch.Tensor): The decoder input tensor in shape (batch_size, dec_inp_length).
 
         Returns: Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]] The output tensor and attention weights of encoder and decoder
-            - The output tensor in shape (batch_size, targ_length, trg_vocab_size)
+            - The output tensor in shape (batch_size, dec_inp_length, trg_vocab_size)
         '''
         # Generate the masks for encoder and decoder
-        enc_padding_mask, dec_look_ahead_mask, cross_padding_mask = gen_mask(inp, targ)
+        # [DEBUG] Hmm
+        # enc_padding_mask, dec_look_ahead_mask, cross_padding_mask = gen_mask(enc_input, dec_input)
 
         # Pass throgh encoder
-        enc_output, enc_attn_weights_dict = self.encoder(inp, enc_padding_mask)
+        enc_output, enc_attn_weights_dict = self.encoder(enc_input, enc_padding_mask)
 
         # Pass through decoder
-        dec_output, dec_attn_weights_dict = self.decoder(targ, enc_output, dec_look_ahead_mask, cross_padding_mask)
+        dec_output, dec_attn_weights_dict = self.decoder(dec_input, enc_output, dec_look_ahead_mask, enc_padding_mask)
 
         # Final feed forward
         output = self.final_ffn(dec_output)

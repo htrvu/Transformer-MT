@@ -4,6 +4,7 @@ from torch.nn import Dropout, Embedding
 from transformer.decoder.decoder_layer import DecoderLayer
 from transformer.helpers import calc_positional_encoding
 from typing import Tuple, Dict
+from torch.autograd import Variable
 
 class Decoder(nn.Module):
     """

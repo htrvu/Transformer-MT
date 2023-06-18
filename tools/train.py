@@ -73,7 +73,7 @@ if __name__ == "__main__":
         # Run
         trainer = Trainer(
             model=model,
-            optimizer=optimizer,
+            optimizer=optimizer,    
             criterion=criterion,
             num_epochs=config_dict['TRAINER']['N_EPOCHS'],
             metric=calc_bleu,
@@ -89,7 +89,7 @@ if __name__ == "__main__":
             args.out_dir = os.path.join(args.out_dir, c)
 
         start = datetime.datetime.now()
-        trainer.fit(train_dataloader, valid_dataloader, out_dir=args.out_dir)
+        trainer.fit(train_dataloader, valid_dataloader, out_dir=args.out_dir, beam_size=config_dict['PREDICTOR']['BEAM_SIZE'])
         end = datetime.datetime.now()
         print('Training time:', end - start)
 

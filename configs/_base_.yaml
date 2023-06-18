@@ -15,8 +15,11 @@ MODEL:
     DROPOUT: 0.1
     EPS: 0.1
 
+PREDICTOR:
+  BEAM_SIZE: 1
+
 DATA:
-  MAX_LEN: 160
+  MAX_LEN: 200
   BATCH_SIZE: 2048 # number of tokens in a batch
 
 OPTIM:
@@ -24,5 +27,5 @@ OPTIM:
   N_WARMUP_STEPS: 3000
 
 TRAINER:
-  N_EPOCHS: 2
+  N_EPOCHS: 500
 

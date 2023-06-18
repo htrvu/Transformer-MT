@@ -119,7 +119,7 @@ class TextDataWrapper:
 
         # Only build vocab based on train data
         if is_train:
-            self.src_field.build_vocab(dataset, )
+            self.src_field.build_vocab(dataset)
             self.trg_field.build_vocab(dataset)
             print('Saving fields...')
             dst_root = './fields'

@@ -25,12 +25,16 @@ class EncoderLayer(nn.Module):
         """
         super(EncoderLayer, self).__init__()
 
-        self.mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model)
-        self.norm1 = nn.LayerNorm(d_model, eps = eps)
+        self.mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model, dropout_prob = dropout_prob)
+        # self.norm1 = nn.LayerNorm(d_model, eps = eps)
+        # [DEBUG]
+        self.norm1 = LayerNorm(d_model, eps = eps)
         self.dropout1 = nn.Dropout(p = dropout_prob)
 
         self.ffn = FeedForward(d_model = d_model, d_hidden = d_ffn_hidden, dropout_prob = dropout_prob)
-        self.norm2 = nn.LayerNorm(d_model, eps = eps)
+        # self.norm2 = nn.LayerNorm(d_model, eps = eps)
+        # [DEBUG]
+        self.norm2 = LayerNorm(d_model, eps = eps)
         self.dropout2 = nn.Dropout(p = dropout_prob)
 
 
@@ -38,7 +42,7 @@ class EncoderLayer(nn.Module):
         """
         Args:
             - q (torch.Tensor): The query tensor in shape (batch_size, q_length, d_model).
-            - padding_mask (torch.Tensor): Padding mask for encoder in shape ...
+            - padding_mask (torch.Tensor): Padding mask for encoder in shape (batch_size, 1, 1, q_length)
         
         Returns: (tuple[torch.Tensor]) Output tensor and self-attention weights.
             - The output tensor in shape (batch_size, q_length, d_model).

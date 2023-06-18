@@ -26,8 +26,8 @@ class DecoderLayer(nn.Module):
         """
         super(DecoderLayer, self).__init__()
 
-        self.masked_mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model)
-        self.mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model)
+        self.masked_mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model, dropout_prob = dropout_prob)
+        self.mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model, dropout_prob = dropout_prob)
 
         self.ffn = FeedForward(d_model = d_model, d_hidden = d_ffn_hidden, dropout_prob = dropout_prob)
 

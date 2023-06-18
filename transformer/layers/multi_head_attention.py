@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from typing import Tuple
 
-def _scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+def _scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor = None, dropout: nn.Module = None) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Calculate the scaled dot product attention for given query, key and value matrices.
 
@@ -18,14 +18,19 @@ def _scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Ten
         - attention weights in shape (batch_size, n_head, ...)
     """
     # Dimension of each key and query vector
-    # d_k = torch.cast(k.shape[-1], dtype=torch.float32)
     d_k = torch.tensor(k.shape[-1], dtype=torch.float32)
 
     # Calculate attention weights
     attention_scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(d_k)   # (..., q_length, k_lengh)
     if mask is not None:
-        attention_scores += (mask * -1e30)
+        # [DEBUG] Hmm
+        # attention_scores += (mask * -1e30)
+        attention_scores = attention_scores.masked_fill(mask == 1, -1e30)
     attention_weights = F.softmax(attention_scores, dim=-1) 
+
+    # [DEBUG] Hmm dropout?
+    # if dropout is not None:
+    #     attention_weights = dropout(attention_weights)
 
     # Calculate attention values
     attention_values = torch.matmul(attention_weights, v) # (..., q_length, d_v)
@@ -39,7 +44,7 @@ class MultiHeadAttention(nn.Module):
     Multi-head Attention layer as described in the paper.
     """
 
-    def __init__(self, n_heads: int = 6, d_q: int = None, d_k: int = None, d_v: int = None, d_model: int = 512):
+    def __init__(self, n_heads: int = 6, d_q: int = None, d_k: int = None, d_v: int = None, d_model: int = 512, dropout_prob: float = None):
         """
         Args:
             - n_heads (int): Number of heads
@@ -47,9 +52,12 @@ class MultiHeadAttention(nn.Module):
             - d_k (int): The dimension of the key vector (default to None)
             - d_v (int): The dimension of the value vector (default to None)
             - d_model (int): The dimension of linear projection for query, key and value matrices.
+            - dropout_prob (float): The probability of the dropout layer (default to None)
         """
         super(MultiHeadAttention, self).__init__()
         
+        assert d_model % n_heads == 0, "The number of heads must be divisible by the dimension of linear projection."
+
         self.n_heads = n_heads
         self.d_model = d_model
 
@@ -66,6 +74,10 @@ class MultiHeadAttention(nn.Module):
         # Last feed forward layer
         self.w_out = nn.Linear(d_model, d_model)
 
+        self.dropout = None
+        if dropout_prob is not None:
+            self.dropout = nn.Dropout(dropout_prob)
+        
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor = None):
         """
@@ -92,7 +104,7 @@ class MultiHeadAttention(nn.Module):
         v_heads = self.__split(v_projected)     # (..., n_head, v_length, d_model // n_heads)
 
         # Attention
-        attention_values, attention_weights = _scaled_dot_product_attention(q_heads, k_heads, v_heads, mask = mask)
+        attention_values, attention_weights = _scaled_dot_product_attention(q_heads, k_heads, v_heads, mask = mask, dropout = self.dropout)
 
         # Merge heads
         out = self.__merge(attention_values)    # (..., q_length, d_model)
@@ -112,12 +124,8 @@ class MultiHeadAttention(nn.Module):
 
         Returns: (torch.Tensor) tensor in shape (..., n_heads, length, d_model // n_heads)
         """
-        batch_size, length, d_model = x.size()
-
-        assert d_model % self.n_heads == 0, "The number of heads must be divisible by the dimension of linear projection."
-        
+        batch_size, length, d_model = x.size()        
         d_tensor = d_model // self.n_heads
-
         new_x = x.view(batch_size, length, self.n_heads, d_tensor).transpose(1, 2)
         return new_x
 
@@ -132,6 +140,5 @@ class MultiHeadAttention(nn.Module):
         Returns: (torch.Tensor) Tensor in shape (batch_size, length, d_model)
         """
         batch_size, head, length, d_tensor = x.size()
-        d_model = head * d_tensor
-        new_x = x.transpose(1, 2).contiguous().view(batch_size, length, d_model)
+        new_x = x.transpose(1, 2).contiguous().view(batch_size, length, head * d_tensor)
         return new_x

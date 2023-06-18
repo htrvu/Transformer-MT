@@ -4,7 +4,7 @@ from torch.nn import Dropout, Embedding
 from transformer.encoder.encoder_layer import EncoderLayer
 from transformer.helpers import calc_positional_encoding
 from typing import Tuple, Dict
-
+from torch.autograd import Variable
 
 class Encoder(nn.Module):
     """
