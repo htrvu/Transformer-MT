@@ -14,7 +14,7 @@ bash install.sh
 ## 2. Demo Application
 <span id='demo'></span>
 
-Download resources from this [link]() and put it in folder `./runs`.
+Download resources from this [link](https://drive.google.com/file/d/1VbQkSiC2k0SiuqniOOiSdAwZG11nMy0D/view?usp=sharing) and put it in folder `./runs`.
 
 Expected structure:
 
