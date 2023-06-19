@@ -19,6 +19,19 @@ gg_output_text = None
 max_len = 200
 beam_size = 1
 
+def preprocess(input):
+    input += '.'
+
+    dict = {
+        "'": "&apos;",
+        '"': "&quot;",
+    }
+
+    for key, value in dict.items():
+        input = input.replace(key, value)
+
+    return input
+
 @st.cache_resource
 def load_model():
     '''
@@ -107,8 +120,15 @@ def run_ui():
                 gg_output_text = None
                 return
             else:
+                input_text = preprocess(input_text)
                 model_output_text = load_model()(input_text, max_len=max_len, beam_size=beam_size)
-                gg_output_text = load_gg_trans().translate(input_text, lang_src='en', lang_tgt='vi')
+                # Avoid fail to connect to Google Translate
+                while True:
+                    try:
+                        gg_output_text = load_gg_trans().translate(input_text, lang_src='en', lang_tgt='vi').lower()
+                        break
+                    except:
+                        pass
 
     with right_column:
         st.write("**Output from model:**")
