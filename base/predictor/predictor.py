@@ -55,7 +55,7 @@ class Predictor:
         sentence = Variable(torch.LongTensor(indexed).unsqueeze(0).to(self.device))
 
         sentence = beam_search(sentence, self.model, self.src_field, self.trg_field, max_len, beam_size, self.device)
-
+        
         return multiple_replace(
-            {" ?": "?", " !": "!", " .": ".", "' ": "'", " ,": ","}, sentence
+            {" ?": "?", " !": "!", " .": ".", "' ": "'", " ,": ",", "_": " "}, sentence
         )
