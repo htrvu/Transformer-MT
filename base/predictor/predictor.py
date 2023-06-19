@@ -9,7 +9,7 @@ class Predictor:
     """
     Predictor class
     """
-
+    
     def __init__(
         self,
         model: nn.Module,
@@ -50,12 +50,12 @@ class Predictor:
             if self.src_field.vocab.stoi[token] != self.src_field.vocab.stoi[EOS]:
                 indexed.append(self.src_field.vocab.stoi[token])
             else:
-                indexed.append(get_synonym(token, self.src_field.vocab))
+                indexed.append(get_synonym(token, self.src_field))
 
         sentence = Variable(torch.LongTensor(indexed).unsqueeze(0).to(self.device))
 
         sentence = beam_search(sentence, self.model, self.src_field, self.trg_field, max_len, beam_size, self.device)
-
+        
         return multiple_replace(
-            {" ?": "?", " !": "!", " .": ".", "' ": "'", " ,": ","}, sentence
+            {" ?": "?", " !": "!", " .": ".", "' ": "'", " ,": ",", "_": " "}, sentence
         )

@@ -6,10 +6,11 @@ import torch.nn as nn
 from torchtext.legacy.data import Field, Batch, Iterator
 import matplotlib.pyplot as plt
 import time
-from typing import Callable, Type, Dict
+from typing import Callable, Type
 
-from base.metrics import calc_bleu
 from base.predictor import Predictor
+from transformer.helpers import gen_mask
+from constants import *
 
 
 class Trainer:
@@ -55,6 +56,7 @@ class Trainer:
 
         self.model.to(self.device)
 
+
     def step(self, batch: Batch) -> nn.Module:
         """
         A step of training
@@ -69,19 +71,22 @@ class Trainer:
 
         src = batch.src.transpose(0, 1).to(self.device)
         trg = batch.trg.transpose(0, 1).to(self.device)
+        trg_inputs = trg[:, :-1]
+        trg_labels = trg[:, 1:].contiguous().view(-1)
 
-        trg_input = trg[:, :-1]
-
-        preds, _, _ = self.model(src, trg_input)
-
-        ys = trg[:, 1:].contiguous().view(-1)
+        enc_padding_mask, dec_look_ahead_mask = gen_mask(src, 
+                                                            self.src_field.vocab.stoi[PAD], 
+                                                            trg_inputs,
+                                                            self.trg_field.vocab.stoi[PAD])
+        preds, _, _ = self.model(src, trg_inputs, enc_padding_mask, dec_look_ahead_mask)
 
         self.optimizer.zero_grad()
-        loss = self.criterion(preds.view(-1, preds.size(-1)), ys)
+        loss = self.criterion(preds.view(-1, preds.size(-1)), trg_labels)
         loss.backward()
         self.optimizer.step()
 
         return loss
+
 
     @torch.no_grad()
     def validate(self, val_iter: Iterator) -> float:
@@ -100,22 +105,25 @@ class Trainer:
         for _, batch in enumerate(val_iter):
             src = batch.src.transpose(0, 1).to(self.device)
             trg = batch.trg.transpose(0, 1).to(self.device)
+            trg_inputs = trg[:, :-1]
+            trg_labels = trg[:, 1:].contiguous().view(-1)
 
-            trg_input = trg[:, :-1]
+            enc_padding_mask, dec_look_ahead_mask = gen_mask(src, 
+                                                             self.src_field.vocab.stoi[PAD], 
+                                                             trg_inputs,
+                                                             self.trg_field.vocab.stoi[PAD])
 
-            preds, _, _ = self.model(src, trg_input)
+            preds, _, _ = self.model(src, trg_inputs, enc_padding_mask, dec_look_ahead_mask)
 
-            ys = trg[:, 1:].contiguous().view(-1)
-
-            loss = self.criterion(preds.view(-1, preds.size(-1)), ys)
-
+            loss = self.criterion(preds.view(-1, preds.size(-1)), trg_labels)
             total_loss.append(loss.item())
 
         avg_loss = sum(total_loss) / len(total_loss)
 
         return avg_loss
 
-    def fit(self, train_iter: Iterator, valid_iter: Iterator, beam_size: int = 1, out_dir: str = './weights', log_interval: int = 50) -> None:
+
+    def fit(self, train_iter: Iterator, valid_iter: Iterator, beam_size: int = 1, out_dir: str = './runs', log_interval: int = 100) -> None:
         """
         Fit model
 
@@ -125,10 +133,17 @@ class Trainer:
             k (int): Beam size
         """
         print('Start training...')
-        print('The checkpoints and logs will be saved at', out_dir)
-        os.makedirs(out_dir, exist_ok=True)
+        print('The training results will be saved at', out_dir)
 
-        loss_log = []
+        # Only calculate BLEU on first 500 sentences of validation set
+        val_src = [' '.join(x.src) for x in valid_iter.dataset.examples[:500]][1:]
+        val_trg = [' '.join(x.trg) for x in valid_iter.dataset.examples[:500]][1:]
+        predictor = Predictor(self.model, self.src_field, self.trg_field, self.device)
+
+        log = []
+        train_losses = []
+        valid_losses = []
+        bleu_scores = []
         min_valid_loss = float('inf')
         for epoch in range(self.num_epochs):
             # Train
@@ -145,7 +160,7 @@ class Trainer:
                 if i % log_interval == 0:
                     avg_loss = iter_loss / log_interval
                     print(
-                        f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Loss: {avg_loss:.4f}",
+                        f"Epoch: {epoch + 1:3}/{self.num_epochs} | Iteration: {i} | Loss: {avg_loss:.4f}",
                         end='\r'
                     )
                     iter_loss = 0
@@ -153,17 +168,34 @@ class Trainer:
             avg_loss = epoch_loss / cnt
 
             # Validate
-            s = time.time()
             valid_loss = self.validate(valid_iter)
+
+            # BLEU score
+            pred_sentences = []
+            for sentence in val_src:
+                pred_trg = predictor(sentence, self.max_len, beam_size)
+                pred_sentences.append(pred_trg)
+            pred_sentences = [self.trg_field.preprocess(sentence) for sentence in pred_sentences]
+            trg_sentences = [[sent.split()] for sent in val_trg]
+            bleu_score = self.metric(pred_sentences, trg_sentences)
             
             print(
-                f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Train Loss: {avg_loss:.4f} | Valid Loss: {valid_loss:.4f}"
+                f"Epoch: {epoch + 1:3}/{self.num_epochs} | Time: {time.time() - s:.2f}s | Train Loss: {avg_loss:.4f} | Valid Loss: {valid_loss:.4f} | BLEU score: {bleu_score}"
             )
-            loss_log.append({
+
+            log.append({
                 'epoch': epoch + 1,
                 'train_loss': avg_loss,
-                'val_loss': valid_loss
+                'val_loss': valid_loss,
+                'bleu_score': bleu_score
             })
+            train_losses.append(avg_loss)
+            valid_losses.append(valid_loss)
+            bleu_scores.append(bleu_score)
+            
+            # Write log
+            with open(os.path.join(out_dir, 'log.json'), 'w') as f:
+                json.dump(log, f, indent=4)
 
             # Save checkpoint
             if valid_loss < min_valid_loss:
@@ -171,36 +203,19 @@ class Trainer:
                 torch.save(self.model.state_dict(), f'{out_dir}/best.pt')
             torch.save(self.model.state_dict(), f'{out_dir}/last.pt')
 
+            # Plot: Loss
+            plt.figure()
+            plt.plot(train_losses, label='Train Loss')
+            plt.plot(valid_losses, label='Val Loss')
+            plt.legend()
+            plt.xlabel('Epoch')
+            plt.title('Loss')
+            plt.savefig(os.path.join(out_dir, 'loss_plot.png'))
 
-        # Only calculate BLEU on first 500 sentences of validation set
-        print(f'Evaluating BLEU score with beam size = {beam_size}...')
-        val_src = [' '.join(x.src) for x in valid_iter.dataset.examples[:10]][1:]
-        val_trg = [' '.join(x.trg) for x in valid_iter.dataset.examples[:10]][1:]
-        predictor = Predictor(self.model, self.src_field, self.trg_field, self.device)
-        pred_sentences = []
-        for sentence in val_src:
-            pred_trg = predictor(sentence, self.max_len, beam_size)
-            pred_sentences.append(pred_trg)
-
-        pred_sentences = [self.trg_field.preprocess(sentence) for sentence in pred_sentences]
-        trg_sentences = [[sent.split()] for sent in val_trg]
-        bleu_score = self.metric(pred_sentences, trg_sentences)
-
-        print(f"BLEU score: {bleu_score:.4f}")
-
-        with open(os.path.join(out_dir, 'log.json'), 'w') as f:
-            json.dump(loss_log, f, indent=4)
-
-        train_loss = []
-        val_loss = []
-        for epoch in loss_log:
-            train_loss.append(epoch['train_loss'])
-            val_loss.append(epoch['val_loss'])
-
-        # Plot
-        plt.plot(train_loss, label='train_loss')
-        plt.plot(val_loss, label='val_loss')
-        plt.legend()
-        plt.xlabel('Epoch')
-        # Save
-        plt.savefig(os.path.join(out_dir, 'plot.png'))
+            # Plot: BLEU score
+            plt.figure()
+            plt.plot(bleu_scores, label='BLEU score')
+            plt.legend()
+            plt.xlabel('Epoch')
+            plt.title(f'BLEU score with beam size = {beam_size}')
+            plt.savefig(os.path.join(out_dir, 'bleu_plot.png'))

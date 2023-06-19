@@ -1,6 +1,7 @@
 # English-Vietnamese Translation using Transformer
 
 ## 1. Installation
+<span id='install'></span>
 
 You should have CUDA installed with version >= 11.1.
 
@@ -10,15 +11,35 @@ conda activate trans
 bash install.sh
 ```
 
-## 2. Live demo
+## 2. Demo Application
+<span id='demo'></span>
 
-...
+Download resources from this [link](https://drive.google.com/file/d/1VbQkSiC2k0SiuqniOOiSdAwZG11nMy0D/view?usp=sharing) and put it in folder `./runs`.
+
+Expected structure:
+
+```
+./runs/
+    |-- folder_names/
+        |-- config.yaml
+        |-- best.pt
+        |-- src_field.pt
+        |-- trg_field.pt
+        |-- ...
+```
+
+Run:
+
+```bash
+streamlit run app.py ./runs/folder_names
+```
 
 ## 3. Training from scratch
 
 ### 3.1. Dataset
+<span id='dataset'></span>
 
-Download the [dataset from TED](https://drive.google.com/uc?id=1Fuo_ALIFKlUvOPbK5rUA5OfAS2wKn_95) and put it in folder `./data`.
+Download the [dataset from TED](https://drive.google.com/file/d/1y9udEJSwe9eqPSSSt79GImD3Ai-o9nV4/view?usp=sharing) and put it in folder `./data`.
 
 Expected structure:
 
@@ -26,15 +47,20 @@ Expected structure:
 ./data/
     |-- train.en
     |-- train.vi
-    |-- tst2012.en
-    |-- tst2012.vi
-    |-- tst2013.en
-    |-- tst2013.vi
+    |-- val.en
+    |-- val.vi
+    |-- test.en
+    |-- test.vi
 ```
 
 ### 3.2. Training command
+<span id='train'></span>
 
 ```bash
 python ...
 ```
 
+## 4. Evaluation
+<span id='eval'></span>
+
+...

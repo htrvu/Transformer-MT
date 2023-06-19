@@ -15,21 +15,31 @@ from utils import *
 from constants import *
 
 
-def get_synonym(token: str, vocab: Field) -> int:
-    '''
-    Get synonym of a word in vocabulary
+# def get_synonym(token: str, vocab: Field) -> int:
+#     '''
+#     Get synonym of a word in vocabulary
 
-    Args:
-        - token (str): word
-        - vocab (Field): data field (or vocabulary)
+#     Args:
+#         - token (str): word
+#         - vocab (Field): data field (or vocabulary)
     
-    Returns: index of synonym in vocabulary
-    '''
-    syns = wordnet.synsets(token)
-    for syn in syns:
-        for l in syn.lemmas():
-            if l.name() in vocab.stoi:
-                return vocab.stoi[l.name()]
+#     Returns: index of synonym in vocabulary
+#     '''
+#     syns = wordnet.synsets(token)
+#     for syn in syns:
+#         for l in syn.lemmas():
+#             if l.name() in vocab.stoi:
+#                 return vocab.stoi[l.name()]
+#     return 0
+
+
+def get_synonym(word, field):
+    syns = wordnet.synsets(word)
+    for s in syns:
+        for l in s.lemmas():
+            if field.vocab.stoi[l.name()] != 0:
+                return field.vocab.stoi[l.name()]
+            
     return 0
 
 
@@ -51,23 +61,33 @@ def _first_generate(
         - src_field (Field): source field (or vocabulary)
         - trg_field (Field): target field (or vocabulary)
         - device (str): device to run model
-        - k (int): beam size
+        - beam_size (int): beam size
         - max_len (int): maximum length of sentence
 
     Returns: (tuple[torch.Tensor]) generated output, encoder output, log scores
         - Generated output in shape (beam_size, max_len)
         - Encoder output in shape (beam_size, max_len, d_model)
+        - Encoder padding mask in shape (1, 1, 1, max_len)
         - Log scores in shape (1, beam_size)
     '''
-    # Pass through encoder
-    src_padding_mask = (src != src_field.vocab.stoi[PAD]).unsqueeze(-2)
-    enc_output, _ = model.encoder(src, src_padding_mask)
 
-    # Pass through decoder
+    # Decoder start with init token SOS
     init_token = trg_field.vocab.stoi[SOS]
     dec_input = torch.LongTensor([[init_token]]).to(device)
-    _, trg_look_ahead_mask, _ = gen_mask(src, dec_input)
-    dec_out, _ = model.decoder(dec_input, enc_output, trg_look_ahead_mask, src_padding_mask)
+    
+    # [DEBUG] hmm
+    # Gen masks
+    enc_padding_mask, dec_look_ahead_mask = gen_mask(src, 
+                                                     src_field.vocab.stoi[PAD], 
+                                                     dec_input,
+                                                     trg_field.vocab.stoi[PAD])
+
+    # Pass through encoder
+    # enc_padding_mask = (src != src_field.vocab.stoi[PAD]).unsqueeze(-2)
+    enc_output, _ = model.encoder(src, enc_padding_mask)
+
+    # Pass through decoder
+    dec_out, _ = model.decoder(dec_input, enc_output, dec_look_ahead_mask, enc_padding_mask)
 
     # Final feed forward to predict word
     cls_out = model.final_ffn(dec_out)
@@ -80,13 +100,13 @@ def _first_generate(
     # Create matrix result for the whole beam search process
     outputs_batch = torch.zeros(beam_size, max_len).long().to(device)
     outputs_batch[:, 0] = init_token
-    outputs_batch[:, 1] = ix[0]   # First word
+    outputs_batch[:, 1] = ix[0]   # First predicted word
 
     # Store encoder output for later uses
     enc_outputs = torch.zeros(beam_size, enc_output.size(-2), enc_output.size(-1)).to(device)
     enc_outputs[:, :] = enc_output[0]
 
-    return outputs_batch, enc_outputs, log_scores
+    return outputs_batch, enc_outputs, enc_padding_mask, log_scores
 
 
 def beam_search(
@@ -110,22 +130,27 @@ def beam_search(
         - k (int): beam size (default to 1)
         - device (str): device to run model (default to 'cuda)
     '''
-    # Translate first word
-    # Thus we only need to calculate encoder output once
-    outputs_batch, enc_outputs, log_scores = _first_generate(src, model, src_field, trg_field, device, beam_size, max_len)
+    # Translate first word. We only need to calculate encoder output once
+    outputs_batch, enc_outputs, enc_padding_mask, log_scores = _first_generate(src, model, src_field, trg_field, device, beam_size, max_len)
 
     # Next words, we predict with decoder input is a batch of sentences
     eos_tok = trg_field.vocab.stoi[EOS]
-    src_padding_mask = (src != src_field.vocab.stoi[PAD]).unsqueeze(-2)
+    # [DEBUG] Hmm
+    # enc_padding_mask = (src != src_field.vocab.stoi[PAD]).unsqueeze(-2)
     selected_result = None
     for i in range(2, max_len):
+        # Gen new look ahead mask for decoder
+        _, dec_look_ahead_mask = gen_mask(src, 
+                                             src_field.vocab.stoi[PAD],
+                                             outputs_batch[:, :i],
+                                             trg_field.vocab.stoi[PAD])
+
         # Pass through decoder
-        _, trg_look_ahead_mask, _ = gen_mask(src, outputs_batch[:, :i])
-        dec_out, _ = model.decoder(outputs_batch[:, :i], enc_outputs, trg_look_ahead_mask, src_padding_mask)
+        dec_out, _ = model.decoder(outputs_batch[:, :i], enc_outputs, dec_look_ahead_mask, enc_padding_mask)
         cls_out = model.final_ffn(dec_out)
         cls_out = F.softmax(cls_out, dim=-1)
 
-        # Last word
+        # Pick last word (predicted word at this step)
         probs, ix = cls_out[:, -1].data.topk(beam_size)
         
         # Update log scores (mul of prob --> sum of log prob)

@@ -66,18 +66,22 @@ class TextDataWrapper:
         trg_tokenizer = Tokenizer(self.trg_lang)
 
         print("Creating fields...")
-        self.src_field = data.Field(lower=True, tokenize=src_tokenizer.tokenize)
+        self.src_field = data.Field(
+            lower=True, 
+            tokenize=src_tokenizer.tokenize,
+            pad_token=PAD)
         self.trg_field = data.Field(
             lower=True,
             tokenize=trg_tokenizer.tokenize,
             init_token=SOS,
             eos_token=EOS,
+            pad_token=PAD,
         )
         print('Done')
         print('------------------------')
 
 
-    def create_dataloader(self, src_path: str, trg_path: str, is_train: bool = True) -> data.Iterator:
+    def create_dataloader(self, src_path: str, trg_path: str, is_train: bool = True, save_field_path: str = './fields') -> data.Iterator:
         """
         Create dataset and iterator
 
@@ -85,6 +89,7 @@ class TextDataWrapper:
             src_data (List[str]): source data
             trg_data (List[str]): target data
             is_train (bool, optional): identify train/val split. Defaults to True.
+            save_field_path (str, optional): path to save fields. Defaults to './fields'.
         """
         print("Reading source and target data from files:", src_path, trg_path)
         src_data, trg_data = read_data(src_path, trg_path)
@@ -119,13 +124,12 @@ class TextDataWrapper:
 
         # Only build vocab based on train data
         if is_train:
-            self.src_field.build_vocab(dataset, )
+            self.src_field.build_vocab(dataset)
             self.trg_field.build_vocab(dataset)
-            print('Saving fields...')
-            dst_root = './fields'
-            os.makedirs(dst_root, exist_ok=True)
-            torch.save(self.src_field, os.path.join(dst_root, 'src_field.pt'), pickle_module=dill)
-            torch.save(self.trg_field, os.path.join(dst_root, 'trg_field.pt'), pickle_module=dill)
+            print('Saving fields to', save_field_path)
+            os.makedirs(save_field_path, exist_ok=True)
+            torch.save(self.src_field, os.path.join(save_field_path, 'src_field.pt'), pickle_module=dill)
+            torch.save(self.trg_field, os.path.join(save_field_path, 'trg_field.pt'), pickle_module=dill)
 
         print('Done')
         print('------------------------')
@@ -143,5 +147,5 @@ if __name__=="__main__":
     print(len(data_wrapper.src_field.vocab))
     print(len(data_wrapper.trg_field.vocab))
 
-    print(data_wrapper.src_field.vocab.stoi['<pad>'])
-    print(data_wrapper.trg_field.vocab.stoi['<pad>'])
+    print(data_wrapper.src_field.vocab.stoi[PAD])
+    print(data_wrapper.trg_field.vocab.stoi[PAD])
