@@ -11,7 +11,7 @@ def _scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Ten
         - q (torch.Tensor): The query matrix in shape (batch_size, n_head, q_length, d_k)
         - k (torch.Tensor): The key matrix in shape (batch_size, n_head, k_length, d_k)
         - v (torch.Tensor): The value matrix in shape (batch_size, n_head, v_length, d_v)
-        - mask (torch.Tensor): The look ahead mask in shape (batch_size, n_head, ...) (default to None)
+        - mask (torch.Tensor): The look ahead mask in shape (batch_size, ...) (default to None)
     
     Returns: (torch.Tensor, torch.Tensor) Attention values and attention weights.
         - Attention values in shape (batch_size, n_head, q_length, d_v)
@@ -29,8 +29,8 @@ def _scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Ten
     attention_weights = F.softmax(attention_scores, dim=-1) 
 
     # [DEBUG] Hmm dropout?
-    # if dropout is not None:
-    #     attention_weights = dropout(attention_weights)
+    if dropout is not None:
+        attention_weights = dropout(attention_weights)
 
     # Calculate attention values
     attention_values = torch.matmul(attention_weights, v) # (..., q_length, d_v)
@@ -44,7 +44,7 @@ class MultiHeadAttention(nn.Module):
     Multi-head Attention layer as described in the paper.
     """
 
-    def __init__(self, n_heads: int = 6, d_q: int = None, d_k: int = None, d_v: int = None, d_model: int = 512, dropout_prob: float = None):
+    def __init__(self, n_heads: int = 8, d_q: int = None, d_k: int = None, d_v: int = None, d_model: int = 512, dropout_prob: float = None):
         """
         Args:
             - n_heads (int): Number of heads
@@ -120,13 +120,13 @@ class MultiHeadAttention(nn.Module):
         Split a tensor to n_heads tensors.
 
         Args:
-            - x (torch.Tensor): Tensor in shape (..., length, d_model)
+            - x (torch.Tensor): Tensor in shape (batch_size, length, d_model)
 
-        Returns: (torch.Tensor) tensor in shape (..., n_heads, length, d_model // n_heads)
+        Returns: (torch.Tensor) tensor in shape (batch_size, n_heads, length, d_model // n_heads)
         """
         batch_size, length, d_model = x.size()        
         d_tensor = d_model // self.n_heads
-        new_x = x.view(batch_size, length, self.n_heads, d_tensor).transpose(1, 2)
+        new_x = (x.view(batch_size, length, self.n_heads, d_tensor)).transpose(1, 2)
         return new_x
 
 

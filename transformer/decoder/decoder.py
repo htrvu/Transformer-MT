@@ -3,8 +3,8 @@ from torch import nn
 from torch.nn import Dropout, Embedding
 from transformer.decoder.decoder_layer import DecoderLayer
 from transformer.helpers import calc_positional_encoding
-from typing import Tuple, Dict
-from torch.autograd import Variable
+from transformer.layers import LayerNorm
+from typing import Tuple
 
 class Decoder(nn.Module):
     """
@@ -18,7 +18,7 @@ class Decoder(nn.Module):
                  d_model: int = 512,
                  d_ffn_hidden: int = 2048,
                  dropout_prob: float = 0.1,
-                 eps: float = 0.1):
+                 eps: float = 1e-6):
         '''
         Args:
             - n_dec_layers (int): Number of decoder layers (default to 6)
@@ -34,11 +34,13 @@ class Decoder(nn.Module):
         
         self.d_model = d_model
 
+        self.word_embedding = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
+
         self.dec_layers = nn.ModuleList([DecoderLayer(n_heads, d_model, d_ffn_hidden, dropout_prob, eps) 
                                          for _ in range(n_dec_layers)])
         
-        self.word_embedding = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
         self.dropout = Dropout(dropout_prob)
+        self.norm = LayerNorm(d_model, eps = eps)
 
 
     # def forward(self, q: torch.Tensor, enc_output: torch.Tensor, look_a = None) -> torch.Tensor:
@@ -78,6 +80,9 @@ class Decoder(nn.Module):
             all_attn_weights[f'decoder_layer_{i+1}_self_attn_weights']: self_attn_weights
             all_attn_weights[f'decoder_layer_{i+1}_cross_attn_weights']: cross_attn_weights
 
+        # Normalize
+        dec_out = self.norm(dec_out)
+        
         return dec_out, all_attn_weights
 
 

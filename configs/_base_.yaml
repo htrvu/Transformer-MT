@@ -5,7 +5,7 @@ MODEL:
     D_MODEL: 512
     D_FFN: 2048
     DROPOUT: 0.1
-    EPS: 0.1
+    EPS: 0.000001 # 1e-6
 
   DECODER:
     N_LAYERS: 6
@@ -13,7 +13,7 @@ MODEL:
     D_MODEL: 512
     D_FFN: 2048
     DROPOUT: 0.1
-    EPS: 0.1
+    EPS: 0.000001 # 1e-6
 
 PREDICTOR:
   BEAM_SIZE: 1

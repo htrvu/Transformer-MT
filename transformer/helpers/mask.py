@@ -6,6 +6,7 @@ def _gen_padding_mask(inp: torch.Tensor, src_pad: int) -> torch.Tensor:
     Generate padding mask for given input.
     Example:
         input = [[1, 2, 3, 4, 0, 0]]
+        pad = 0
         output = [[0, 0, 0, 0, 1, 1]]
     
     Args:
@@ -16,8 +17,11 @@ def _gen_padding_mask(inp: torch.Tensor, src_pad: int) -> torch.Tensor:
         - result (torch.Tensor): Padding mask in shape (batch_size, 1, 1, inp_len)
     """
     # result = torch.eq(inp, 0).float()[:, np.newaxis, np.newaxis, :]
+
     result = torch.eq(inp, src_pad)[:, np.newaxis, np.newaxis, :]
     result = result.to(torch.uint8)
+
+    # result = (inp == src_pad).unsqueeze(-2).to(torch.uint8)
     return result
 
 def _gen_look_ahead_mask(inp_len):
@@ -39,6 +43,8 @@ def _gen_look_ahead_mask(inp_len):
     """
     mask = (1 - torch.tril(torch.ones((inp_len, inp_len))))
     mask = mask.to(torch.uint8)
+    # mask = np.triu(np.ones((1, inp_len, inp_len)), k=1)
+    # mask = torch.from_numpy(mask).to(torch.uint8)
     return mask
 
 def gen_mask(enc_input: torch.Tensor, src_pad: int, dec_input: torch.Tensor, trg_pad: int):
@@ -58,16 +64,16 @@ def gen_mask(enc_input: torch.Tensor, src_pad: int, dec_input: torch.Tensor, trg
         - Look ahead mask in shape (batch_size, 1, targ_len, dec_input_len)
     """
     # Encoder padding mask
-    encoder_padding_mask = _gen_padding_mask(enc_input, src_pad).to(enc_input.device)
+    enc_padding_mask = _gen_padding_mask(enc_input, src_pad).to(enc_input.device)
 
     # [DEBUG] hmmm
     # Cross padding mask: Use for cross-attention for masking encoder output
     # cross_padding_mask = _gen_padding_mask(enc_input).to(enc_input.device)
 
     # Look ahead padding mask
-    decoder_look_ahead_mask = _gen_look_ahead_mask(dec_input.shape[1]).to(dec_input.device)
+    dec_look_ahead_mask = _gen_look_ahead_mask(dec_input.shape[1]).to(dec_input.device)
     # Decoder padding mask
-    decoder_inp_padding_mask = _gen_padding_mask(dec_input, trg_pad).to(dec_input.device)
+    dec_inp_padding_mask = _gen_padding_mask(dec_input, trg_pad).to(dec_input.device)
     # Update look ahead mask
     # Example:
     #     input = [[1, 2, 3, 0, 0]]
@@ -76,9 +82,10 @@ def gen_mask(enc_input: torch.Tensor, src_pad: int, dec_input: torch.Tensor, trg
     #               [0, 0, 0, 1, 1]
     #               [0, 0, 0, 1, 1]
     #               [0, 0, 0, 1, 1]]
-    decoder_look_ahead_mask = torch.maximum(decoder_look_ahead_mask, decoder_inp_padding_mask).to(dec_input.device)
+    dec_look_ahead_mask = torch.maximum(dec_look_ahead_mask, dec_inp_padding_mask).to(torch.uint8)
+    dec_look_ahead_mask = dec_look_ahead_mask.to(dec_input.device)
 
-    return encoder_padding_mask, decoder_look_ahead_mask
+    return enc_padding_mask, dec_look_ahead_mask
 
 
 # Test

@@ -89,7 +89,7 @@ if __name__ == "__main__":
             args.out_dir = os.path.join(args.out_dir, c)
 
         start = datetime.datetime.now()
-        trainer.fit(train_dataloader, valid_dataloader, out_dir=args.out_dir, beam_size=config_dict['PREDICTOR']['BEAM_SIZE'])
+        trainer.fit(train_dataloader, valid_dataloader, out_dir=args.out_dir)
         end = datetime.datetime.now()
         print('Training time:', end - start)
 

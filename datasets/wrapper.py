@@ -66,12 +66,16 @@ class TextDataWrapper:
         trg_tokenizer = Tokenizer(self.trg_lang)
 
         print("Creating fields...")
-        self.src_field = data.Field(lower=True, tokenize=src_tokenizer.tokenize)
+        self.src_field = data.Field(
+            lower=True, 
+            tokenize=src_tokenizer.tokenize,
+            pad_token=PAD)
         self.trg_field = data.Field(
             lower=True,
             tokenize=trg_tokenizer.tokenize,
             init_token=SOS,
             eos_token=EOS,
+            pad_token=PAD,
         )
         print('Done')
         print('------------------------')
@@ -143,5 +147,5 @@ if __name__=="__main__":
     print(len(data_wrapper.src_field.vocab))
     print(len(data_wrapper.trg_field.vocab))
 
-    print(data_wrapper.src_field.vocab.stoi['<pad>'])
-    print(data_wrapper.trg_field.vocab.stoi['<pad>'])
+    print(data_wrapper.src_field.vocab.stoi[PAD])
+    print(data_wrapper.trg_field.vocab.stoi[PAD])

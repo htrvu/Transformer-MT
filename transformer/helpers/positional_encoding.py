@@ -29,19 +29,19 @@ def calc_positional_encoding(last_pos, d_model):
 
     Returns (torch.Tensor): The positional encoding in shape (1, last_pos, d_model).
     """
-    pe = torch.zeros(last_pos, d_model)
-    for pos in range(last_pos):
-        for i in range(0, d_model, 2):
-            pe[pos, i] = math.sin(pos/(10000**(2*i/d_model)))
-            pe[pos, i+1] = math.cos(pos/(10000**((2*i+1)/d_model)))
-    result = pe.unsqueeze(0)        
-    # angles = _get_angles(d_model)
-    # last_pos = np.expand_dims(np.arange(last_pos), axis=1)
-    # result = last_pos.dot(angles)
-    # result[:, 0::2] = np.sin(result[:, 0::2])
-    # result[:, 1::2] = np.cos(result[:, 1::2])
-    # result = np.expand_dims(result, axis=0)
-    # result = torch.from_numpy(result).float()
+    # pe = torch.zeros(last_pos, d_model)
+    # for pos in range(last_pos):
+    #     for i in range(0, d_model, 2):
+    #         pe[pos, i] = math.sin(pos/(10000**(2*i/d_model)))
+    #         pe[pos, i+1] = math.cos(pos/(10000**((2*i+1)/d_model)))
+    # result = pe.unsqueeze(0)        
+    angles = _get_angles(d_model)
+    last_pos = np.expand_dims(np.arange(last_pos), axis=1)
+    result = last_pos.dot(angles)
+    result[:, 0::2] = np.sin(result[:, 0::2])
+    result[:, 1::2] = np.cos(result[:, 1::2])
+    result = np.expand_dims(result, axis=0)
+    result = torch.from_numpy(result).float()
     return Variable(result, requires_grad=False)
 
 

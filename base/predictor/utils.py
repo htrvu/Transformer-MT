@@ -61,7 +61,7 @@ def _first_generate(
         - src_field (Field): source field (or vocabulary)
         - trg_field (Field): target field (or vocabulary)
         - device (str): device to run model
-        - k (int): beam size
+        - beam_size (int): beam size
         - max_len (int): maximum length of sentence
 
     Returns: (tuple[torch.Tensor]) generated output, encoder output, log scores

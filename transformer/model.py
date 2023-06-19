@@ -24,10 +24,9 @@ class Transformer(nn.Module):
 
         self.encoder = Encoder(**self.enc_config)
         self.decoder = Decoder(**self.dec_config)
+        self.final_ffn = nn.Linear(self.dec_config['d_model'], trg_vocab_size)
 
-        self.final_ffn = nn.Linear(self.dec_config['d_model'], self.dec_config['vocab_size'])
-
-        self.init_weights()
+        self.__init_weights()
 
 
     def __parse_config(self, config_dict: dict, src_vocab_size: int, trg_vocab_size: int):
@@ -57,7 +56,7 @@ class Transformer(nn.Module):
         }
     
     
-    def init_weights(self):
+    def __init_weights(self):
         '''
         Initialize the weights of the model
         '''

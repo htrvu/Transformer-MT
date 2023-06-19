@@ -204,13 +204,19 @@ class Trainer:
                 torch.save(self.model.state_dict(), f'{out_dir}/best.pt')
             torch.save(self.model.state_dict(), f'{out_dir}/last.pt')
 
-            # Plot
+            # Plot: Loss
             plt.figure()
-            plt.plot(train_losses, label='train_loss')
-            plt.plot(valid_losses, label='val_loss')
-            plt.plot(bleu_scores, label='bleu_score')
+            plt.plot(train_losses, label='Train Loss')
+            plt.plot(valid_losses, label='Val Loss')
             plt.legend()
             plt.xlabel('Epoch')
-            plt.title('Loss and BLEU score')
-            # Save
-            plt.savefig(os.path.join(out_dir, 'plot.png'))
+            plt.title('Loss')
+            plt.savefig(os.path.join(out_dir, 'loss_plot.png'))
+
+            # Plot: BLEU score
+            plt.figure()
+            plt.plot(bleu_scores, label='BLEU score')
+            plt.legend()
+            plt.xlabel('Epoch')
+            plt.title(f'BLEU score with beam size = {beam_size}')
+            plt.savefig(os.path.join(out_dir, 'bleu_plot.png'))
