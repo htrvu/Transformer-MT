@@ -133,8 +133,7 @@ class Trainer:
             k (int): Beam size
         """
         print('Start training...')
-        print('The checkpoints and logs will be saved at', out_dir)
-        os.makedirs(out_dir, exist_ok=True)
+        print('The training results will be saved at', out_dir)
 
         # Only calculate BLEU on first 500 sentences of validation set
         val_src = [' '.join(x.src) for x in valid_iter.dataset.examples[:500]][1:]

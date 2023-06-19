@@ -1,4 +1,5 @@
 import os
+import shutil
 import datetime
 import torch
 from base.losses.translation_loss import TranslationLoss
@@ -26,15 +27,24 @@ if __name__ == "__main__":
     parser.add_argument("--config_path", type=str, default="./configs/_base_.yaml")
     parser.add_argument("--train_src_path", type=str, default="./data/train.en")
     parser.add_argument("--train_trg_path", type=str, default="./data/train.vi")
-    parser.add_argument("--valid_src_path", type=str, default="./data/tst2013.en")
-    parser.add_argument("--valid_trg_path", type=str, default="./data/tst2013.vi")
+    parser.add_argument("--valid_src_path", type=str, default="./data/val.en")
+    parser.add_argument("--valid_trg_path", type=str, default="./data/val.vi")
     parser.add_argument("--load_from", type=str, default=None, help="path to checkpoint to be loaded")
     parser.add_argument("--out_dir", type=str, default="./runs", help="directory to save checkpoints")
     parser.add_argument("--device", type=str, default="cuda")
 
     args = parser.parse_args()
 
-    try:
+    try:        
+        if args.out_dir == './runs':
+            now = datetime.datetime.now()
+            c = now.strftime("%Y-%m-%d_%H-%M-%S")
+            args.out_dir = os.path.join(args.out_dir, c)
+        
+        # copy config to out_dir
+        os.makedirs(args.out_dir, exist_ok=True)
+        shutil.copy(args.config_path, os.path.join(args.out_dir, 'config.yaml'))
+
         # Load config
         config_dict = load_config(args.config_path)
         print('Config:', config_dict)
@@ -45,7 +55,7 @@ if __name__ == "__main__":
                                        max_len=config_dict['DATA']['MAX_LEN'], 
                                        batch_size=config_dict['DATA']['BATCH_SIZE'],
                                        device=args.device)
-        train_dataloader = data_wrapper.create_dataloader(args.train_src_path, args.train_trg_path, is_train=True)
+        train_dataloader = data_wrapper.create_dataloader(args.train_src_path, args.train_trg_path, is_train=True, save_field_path=args.out_dir)
         valid_dataloader = data_wrapper.create_dataloader(args.valid_src_path, args.valid_trg_path, is_train=False)
         src_vocab_size = len(data_wrapper.src_field.vocab)
         trg_vocab_size = len(data_wrapper.trg_field.vocab)
@@ -82,11 +92,6 @@ if __name__ == "__main__":
             max_len=config_dict['DATA']['MAX_LEN'],
             device=args.device,
         )
-        
-        if args.out_dir == './runs':
-            now = datetime.datetime.now()
-            c = now.strftime("%Y-%m-%d_%H-%M-%S")
-            args.out_dir = os.path.join(args.out_dir, c)
 
         start = datetime.datetime.now()
         trainer.fit(train_dataloader, valid_dataloader, out_dir=args.out_dir)
