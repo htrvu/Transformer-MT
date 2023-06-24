@@ -8,6 +8,9 @@ import dill
 import argparse
 import os
 
+import pathlib
+posix_backup = pathlib.PosixPath
+
 parser = argparse.ArgumentParser()
 parser.add_argument("runs_path", type=str, help="Path to training result folder (e.g. runs/...)")
 args = parser.parse_args()
@@ -49,9 +52,15 @@ def load_model():
     config_dict = load_config(config_path)
     max_len = config_dict['DATA']['MAX_LEN']
     beam_size = config_dict['PREDICTOR']['BEAM_SIZE']
-
-    src_field = torch.load(src_field_path, pickle_module=dill)
-    trg_field = torch.load(trg_field_path, pickle_module=dill)
+    
+    # Debug on windows
+    try:
+        src_field = torch.load(src_field_path, pickle_module=dill)
+        trg_field = torch.load(trg_field_path, pickle_module=dill)
+        print("Load fields successfully!")
+    except Exception as e:
+        raise e
+    
     src_vocab_size = len(src_field.vocab)
     trg_vocab_size = len(trg_field.vocab)
 
@@ -145,6 +154,16 @@ def run_ui():
 if __name__ == '__main__':
     setup_page()
     show_header()
-    load_model()
+    
+    # Try to debug on Windows
+    # NotImplementedError: cannot instantiate 'PosixPath' on your system
+    try:
+        # pathlib.PosixPath = pathlib.WindowsPath
+        load_model()
+    except Exception as e:
+        print(e)
+    finally:
+        pathlib.PosixPath = posix_backup
+
     load_gg_trans()
     run_ui()
