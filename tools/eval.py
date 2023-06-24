@@ -70,7 +70,6 @@ if __name__ == "__main__":
         )
         model.load_state_dict(torch.load(ckpt_path))
 
-
         # Load dataset
         data_wrapper = TextDataWrapper(
             src_lang="en_core_web_sm",
@@ -86,11 +85,19 @@ if __name__ == "__main__":
             args.test_src_path, args.test_trg_path, is_train=False
         )
         # Load pairs of input and output sentence for val and test set
-        subset = 100 # -1 for loading all set
-        valid_src_sentences = [" ".join(x.src) for x in valid_dataloader.dataset.examples[:subset]][1:]
-        valid_trg_sentences = [" ".join(x.trg) for x in valid_dataloader.dataset.examples[:subset]][1:]
-        test_src_sentences = [" ".join(x.src) for x in test_dataloader.dataset.examples[:subset]][1:]
-        test_trg_sentences = [" ".join(x.trg) for x in test_dataloader.dataset.examples[:subset]][1:]
+        subset = 100  # -1 for loading all set
+        valid_src_sentences = [
+            " ".join(x.src) for x in valid_dataloader.dataset.examples[:subset]
+        ][1:]
+        valid_trg_sentences = [
+            " ".join(x.trg) for x in valid_dataloader.dataset.examples[:subset]
+        ][1:]
+        test_src_sentences = [
+            " ".join(x.src) for x in test_dataloader.dataset.examples[:subset]
+        ][1:]
+        test_trg_sentences = [
+            " ".join(x.trg) for x in test_dataloader.dataset.examples[:subset]
+        ][1:]
 
         # Create predictor
         predictor = Predictor(model, src_field, trg_field, device=args.device)
@@ -100,46 +107,44 @@ if __name__ == "__main__":
         beam_size = 1
 
         # Log results
-        subset = 'all' if subset == -1 else subset
+        subset = "all" if subset == -1 else subset
 
         # Evaluate on validation set
         print("Start evaluating on validation set...")
         valid_preds, test_preds = [], []
         for sentence in valid_src_sentences:
-            valid_preds.append(predictor(sentence, max_len=max_len, beam_size=beam_size))
-        
-        valid_preds = [
-            trg_field.preprocess(x) for x in valid_preds
-        ]
+            valid_preds.append(
+                predictor(sentence, max_len=max_len, beam_size=beam_size)
+            )
+
+        valid_preds = [trg_field.preprocess(x) for x in valid_preds]
         valid_trg_sentences = [[sentence.split()] for sentence in valid_trg_sentences]
 
         valid_bleu = calc_bleu(valid_preds, valid_trg_sentences)
 
-        print(f'BLEU score for {subset} samples in validation set:', valid_bleu)
-        print('-' * 50)
+        print(f"BLEU score for {subset} samples in validation set:", valid_bleu)
+        print("-" * 50)
 
         # Evaluate on test set
         print("Start evaluating on test set...")
         for sentence in test_src_sentences:
             test_preds.append(predictor(sentence, max_len=max_len, beam_size=beam_size))
 
-        test_preds = [
-            trg_field.preprocess(x) for x in test_preds
-        ]
+        test_preds = [trg_field.preprocess(x) for x in test_preds]
         test_trg_sentences = [[sentence.split()] for sentence in test_trg_sentences]
 
         test_bleu = calc_bleu(test_preds, test_trg_sentences)
 
-        print(f'BLEU score for {subset} samples in test set:', test_bleu)
-        print('-' * 50)
+        print(f"BLEU score for {subset} samples in test set:", test_bleu)
+        print("-" * 50)
 
         # Save log
         os.makedirs(args.out_dir, exist_ok=True)
-        with open(os.path.join(args.out_dir, 'log.json'), 'w') as f:
+        with open(os.path.join(args.out_dir, "log.json"), "w") as f:
             log = {
-                'valid_bleu': valid_bleu,
-                'test_bleu': test_bleu,
-                'subset': subset,
+                "valid_bleu": valid_bleu,
+                "test_bleu": test_bleu,
+                "subset": subset,
             }
             json.dump(log, f, indent=4)
         print(f"Log is saved to {args.out_dir}/log.json")
