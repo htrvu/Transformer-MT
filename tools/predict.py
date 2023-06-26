@@ -39,5 +39,7 @@ if __name__ == "__main__":
     predictor = Predictor(model, src_field, trg_field, device=args.device)
 
     input = args.input
+    input = preprocess_text(input)
     output = predictor(input, max_len=config_dict['DATA']['MAX_LEN'], beam_size=1)
+    output = postprocess_text(output)
     print(output)

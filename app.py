@@ -22,19 +22,6 @@ gg_output_text = None
 max_len = 200
 beam_size = 1
 
-def preprocess(input):
-    input += '.'
-
-    dict = {
-        "'": " &apos;",
-        # '"': " &quot; ",
-    }
-
-    for key, value in dict.items():
-        input = input.replace(key, value)
-
-    return input
-
 @st.cache_resource
 def load_model():
     '''
@@ -73,6 +60,7 @@ def load_model():
     predictor = Predictor(model, src_field, trg_field, device=device)
 
     return predictor
+
 
 @st.cache_resource
 def load_gg_trans():
@@ -129,8 +117,8 @@ def run_ui():
                 gg_output_text = None
                 return
             else:
-                input_text = input_text.strip()
-                model_output_text = load_model()(preprocess(input_text), max_len=max_len, beam_size=beam_size)
+                input_text = preprocess_text(input_text.strip())
+                model_output_text = postprocess_text(load_model()(input_text, max_len=max_len, beam_size=beam_size))
                 # Avoid fail to connect to Google Translate
                 while True:
                     try:
