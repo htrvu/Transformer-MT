@@ -153,14 +153,14 @@ def postprocess_text(output: str):
 
     Returns: (str) output sentence
     '''
+    print(output)
+
     to_text = output
     to_text = re.sub('\s+', ' ', to_text)
 
     to_text = to_text.replace('<EOS>', '').replace('<pad>', '')
-    to_text = to_text.replace('& quot ', '"')
-    to_text = to_text.replace(' & quot', '"')
-    to_text = to_text.replace('& apos ', "'")
-    to_text = to_text.replace(' & apos', "'")
+    to_text = to_text.replace('& quot', '"')
+    to_text = to_text.replace('& apos', "'")
     to_text = to_text.replace('& # 91 ', "(")
     to_text = to_text.replace(' & # 93', ")")
     to_text = to_text.split('\\')[0].strip()
