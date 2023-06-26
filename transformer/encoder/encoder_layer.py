@@ -26,14 +26,11 @@ class EncoderLayer(nn.Module):
         super(EncoderLayer, self).__init__()
 
         self.mha = MultiHeadAttention(n_heads = n_heads, d_model = d_model, dropout_prob = dropout_prob)
-        # self.norm1 = nn.LayerNorm(d_model, eps = eps)
-        # [DEBUG]
+
         self.norm1 = LayerNorm(d_model, eps = eps)
         self.dropout1 = nn.Dropout(p = dropout_prob)
 
         self.ffn = FeedForward(d_model = d_model, d_hidden = d_ffn_hidden, dropout_prob = dropout_prob)
-        # self.norm2 = nn.LayerNorm(d_model, eps = eps)
-        # [DEBUG]
         self.norm2 = LayerNorm(d_model, eps = eps)
         self.dropout2 = nn.Dropout(p = dropout_prob)
 
@@ -47,24 +44,19 @@ class EncoderLayer(nn.Module):
         Returns: (tuple[torch.Tensor]) Output tensor and self-attention weights.
             - The output tensor in shape (batch_size, q_length, d_model).
         """
-        # [DEBUG] Hmm
         q_norm1 = self.norm1(q)
 
         # Self-attention
-        # mha_out, self_attn_weights = self.mha(q = q, k = q, v = q, mask = padding_mask)
         mha_out, self_attn_weights = self.mha(q = q_norm1, k = q_norm1, v = q_norm1, mask = padding_mask)
 	
         # Skip connection and layer norm
-        # q = self.norm1(q + self.dropout1(mha_out))
         q = q + self.dropout1(mha_out)
         q_norm2 = self.norm2(q)
 
         # Feed forward
-        # ffn_out = self.ffn(q)
         ffn_out = self.ffn(q_norm2)
 
         # Skip connection and layer norm
-        # out = self.norm2(q + self.dropout2(ffn_out))
         out = q + self.dropout2(ffn_out)
         
         return out, self_attn_weights

@@ -15,25 +15,16 @@ from utils import *
 from constants import *
 
 
-# def get_synonym(token: str, vocab: Field) -> int:
-#     '''
-#     Get synonym of a word in vocabulary
-
-#     Args:
-#         - token (str): word
-#         - vocab (Field): data field (or vocabulary)
-    
-#     Returns: index of synonym in vocabulary
-#     '''
-#     syns = wordnet.synsets(token)
-#     for syn in syns:
-#         for l in syn.lemmas():
-#             if l.name() in vocab.stoi:
-#                 return vocab.stoi[l.name()]
-#     return 0
-
-
 def get_synonym(word, field):
+    '''
+    Get synonym of a word in vocabulary
+
+    Args:
+        - token (str): word
+        - field (Field): data field
+    
+    Returns: (int) index of synonym in vocabulary
+    '''
     syns = wordnet.synsets(word)
     for s in syns:
         for l in s.lemmas():
@@ -75,7 +66,6 @@ def _first_generate(
     init_token = trg_field.vocab.stoi[SOS]
     dec_input = torch.LongTensor([[init_token]]).to(device)
     
-    # [DEBUG] hmm
     # Gen masks
     enc_padding_mask, dec_look_ahead_mask = gen_mask(src, 
                                                      src_field.vocab.stoi[PAD], 
@@ -83,7 +73,6 @@ def _first_generate(
                                                      trg_field.vocab.stoi[PAD])
 
     # Pass through encoder
-    # enc_padding_mask = (src != src_field.vocab.stoi[PAD]).unsqueeze(-2)
     enc_output, _ = model.encoder(src, enc_padding_mask)
 
     # Pass through decoder
@@ -135,8 +124,6 @@ def beam_search(
 
     # Next words, we predict with decoder input is a batch of sentences
     eos_tok = trg_field.vocab.stoi[EOS]
-    # [DEBUG] Hmm
-    # enc_padding_mask = (src != src_field.vocab.stoi[PAD]).unsqueeze(-2)
     selected_result = None
     for i in range(2, max_len):
         # Gen new look ahead mask for decoder

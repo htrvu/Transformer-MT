@@ -23,12 +23,9 @@ def _scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Ten
     # Calculate attention weights
     attention_scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(d_k)   # (..., q_length, k_lengh)
     if mask is not None:
-        # [DEBUG] Hmm
-        # attention_scores += (mask * -1e30)
         attention_scores = attention_scores.masked_fill(mask == 1, -1e30)
     attention_weights = F.softmax(attention_scores, dim=-1) 
 
-    # [DEBUG] Hmm dropout?
     if dropout is not None:
         attention_weights = dropout(attention_weights)
 

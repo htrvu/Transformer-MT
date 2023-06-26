@@ -63,7 +63,6 @@ class Transformer(nn.Module):
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
-                # nn.init.kaiming_uniform(p)
 
 
     def forward(self, 
@@ -75,14 +74,12 @@ class Transformer(nn.Module):
         Args:
             - enc_input (torch.Tensor): The encoder input tensor in shape (batch_size, enc_inp_length).
             - dec_input (torch.Tensor): The decoder input tensor in shape (batch_size, dec_inp_length).
+            - enc_padding_mask (torch.Tensor): The encoder padding mask in shape (batch_size, 1, 1, enc_inp_length).
+            - dec_look_ahead_mask (torch.Tensor): The decoder look ahead mask in shape (batch_size, 1, dec_inp_length, dec_inp_length).
 
         Returns: Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]] The output tensor and attention weights of encoder and decoder
             - The output tensor in shape (batch_size, dec_inp_length, trg_vocab_size)
         '''
-        # Generate the masks for encoder and decoder
-        # [DEBUG] Hmm
-        # enc_padding_mask, dec_look_ahead_mask, cross_padding_mask = gen_mask(enc_input, dec_input)
-
         # Pass throgh encoder
         enc_output, enc_attn_weights_dict = self.encoder(enc_input, enc_padding_mask)
 

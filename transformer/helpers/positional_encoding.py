@@ -28,13 +28,7 @@ def calc_positional_encoding(last_pos, d_model):
         - d_model (int): The dimension (of linear projection for the query, key and value matrices).
 
     Returns (torch.Tensor): The positional encoding in shape (1, last_pos, d_model).
-    """
-    # pe = torch.zeros(last_pos, d_model)
-    # for pos in range(last_pos):
-    #     for i in range(0, d_model, 2):
-    #         pe[pos, i] = math.sin(pos/(10000**(2*i/d_model)))
-    #         pe[pos, i+1] = math.cos(pos/(10000**((2*i+1)/d_model)))
-    # result = pe.unsqueeze(0)        
+    """     
     angles = _get_angles(d_model)
     last_pos = np.expand_dims(np.arange(last_pos), axis=1)
     result = last_pos.dot(angles)
