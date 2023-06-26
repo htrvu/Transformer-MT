@@ -14,12 +14,14 @@ if __name__ == "__main__":
     Usage
         python eval.py \
             --runs_path ./runs \
+            --run-train-set \   # (or not)
+            --train_src_path ./data/train.en \
+            --train_trg_path ./data/train.vi \
             --valid_src_path ./data/val.en \
             --valid_trg_path ./data/val.vi \
             --test_src_path ./data/test.en \
             --test_trg_path ./data/test.vi \
             --device cuda:0
-
     """
 
     parser = argparse.ArgumentParser()
@@ -29,6 +31,9 @@ if __name__ == "__main__":
         help="Path to training result folder (e.g. ./runs/...)",
         required=True,
     )
+    parser.add_argument("--run_train_set", action="store_true", default=False)
+    parser.add_argument("--train_src_path", type=str, default="./data/train.en")
+    parser.add_argument("--train_trg_path", type=str, default="./data/train.vi")
     parser.add_argument("--valid_src_path", type=str, default="./data/val.en")
     parser.add_argument("--valid_trg_path", type=str, default="./data/val.vi")
     parser.add_argument("--test_src_path", type=str, default="./data/test.en")
@@ -78,75 +83,137 @@ if __name__ == "__main__":
             batch_size=config_dict["DATA"]["BATCH_SIZE"],
             device=args.device,
         )
-        valid_dataloader = data_wrapper.create_dataloader(
-            args.valid_src_path, args.valid_trg_path, is_train=False
-        )
-        test_dataloader = data_wrapper.create_dataloader(
-            args.test_src_path, args.test_trg_path, is_train=False
-        )
-        # Load pairs of input and output sentence for val and test set
-        subset = 100  # -1 for loading all set
-        valid_src_sentences = [
-            " ".join(x.src) for x in valid_dataloader.dataset.examples[:subset]
-        ][1:]
-        valid_trg_sentences = [
-            " ".join(x.trg) for x in valid_dataloader.dataset.examples[:subset]
-        ][1:]
-        test_src_sentences = [
-            " ".join(x.src) for x in test_dataloader.dataset.examples[:subset]
-        ][1:]
-        test_trg_sentences = [
-            " ".join(x.trg) for x in test_dataloader.dataset.examples[:subset]
-        ][1:]
+
+        src_paths = []
+        trg_paths = []
+        if args.run_train_set:
+            src_paths.append(args.train_src_path)
+            trg_paths.append(args.train_trg_path)
+        src_paths.extend([args.valid_src_path, args.test_src_path])
+        trg_paths.extend([args.valid_trg_path, args.test_trg_path])
 
         # Create predictor
         predictor = Predictor(model, src_field, trg_field, device=args.device)
 
         # Predictor variables
         max_len = config_dict["DATA"]["MAX_LEN"]
-        beam_size = 1
+        beam_size = 5
 
-        # Log results
-        subset = "all" if subset == -1 else subset
+        results = []
+
+        # Run on each set
+        for src_path, trg_path in zip(src_paths, trg_paths):
+            if not os.path.exists(src_path) or not os.path.exists(trg_path):
+                print(f"File not found: {src_path} or {trg_path}")
+                continue
+
+            cur_dataloader = data_wrapper.create_dataloader(src_path, trg_path, is_train=False)
+
+            # Load pairs of input and output sentence
+            src_sentences = [
+                " ".join(x.src) for x in cur_dataloader.dataset.examples
+            ][1:]
+            trg_sentences = [
+                " ".join(x.trg) for x in cur_dataloader.dataset.examples
+            ][1:]
+
+            print("Start evaluating on set:", src_path, trg_path)
+            preds = []
+            for sentence in src_sentences:
+                preds.append(
+                    predictor(sentence, max_len=max_len, beam_size=beam_size)
+                )
+            preds = [trg_field.preprocess(x) for x in preds]
+
+            trg_sentences = [[sentence.split()] for sentence in trg_sentences]
+
+            bleu = calc_bleu(preds, trg_sentences)
+            print(f"BLEU score :", bleu)
+            print("-" * 50)
+
+            results.append({ "src_path": src_path, "trg_path": trg_path, "bleu": bleu })
+
+        # # if args.run_train_set:
+        # #     train_dataloader = data_wrapper.create_dataloader(
+        # #         args.train_src_path, args.train_trg_path, is_train=True
+        # #     )
+        # # valid_dataloader = data_wrapper.create_dataloader(
+        # #     args.valid_src_path, args.valid_trg_path, is_train=False
+        # # )
+        # # test_dataloader = data_wrapper.create_dataloader(
+        # #     args.test_src_path, args.test_trg_path, is_train=False
+        # # )
+        # # # Load pairs of input and output sentence for val and test set
+        # # subset = -1  # -1 for loading all set
+        # # if args.run_train_set:
+        # #     train_src_sentences = [
+        # #         " ".join(x.src) for x in train_dataloader.dataset.examples[:subset]
+        # #     ][1:]
+        # #     train_trg_sentences = [
+        # #         " ".join(x.trg) for x in train_dataloader.dataset.examples[:subset]
+        # #     ][1:]
+        # # valid_src_sentences = [
+        # #     " ".join(x.src) for x in valid_dataloader.dataset.examples[:subset]
+        # # ][1:]
+        # # valid_trg_sentences = [
+        # #     " ".join(x.trg) for x in valid_dataloader.dataset.examples[:subset]
+        # # ][1:]
+        # # test_src_sentences = [
+        # #     " ".join(x.src) for x in test_dataloader.dataset.examples[:subset]
+        # # ][1:]
+        # # test_trg_sentences = [
+        # #     " ".join(x.trg) for x in test_dataloader.dataset.examples[:subset]
+        # # ][1:]
+
+        # # Create predictor
+        # predictor = Predictor(model, src_field, trg_field, device=args.device)
+
+        # # Predictor variables
+        # max_len = config_dict["DATA"]["MAX_LEN"]
+        # beam_size = 5
+
+        # # Log results
+        # subset = "all" if subset == -1 else subset
 
         # Evaluate on validation set
-        print("Start evaluating on validation set...")
-        valid_preds, test_preds = [], []
-        for sentence in valid_src_sentences:
-            valid_preds.append(
-                predictor(sentence, max_len=max_len, beam_size=beam_size)
-            )
+        # print("Start evaluating on validation set...")
+        # valid_preds, test_preds = [], []
+        # for sentence in valid_src_sentences:
+        #     valid_preds.append(
+        #         predictor(sentence, max_len=max_len, beam_size=beam_size)
+        #     )
 
-        valid_preds = [trg_field.preprocess(x) for x in valid_preds]
-        valid_trg_sentences = [[sentence.split()] for sentence in valid_trg_sentences]
+        # valid_preds = [trg_field.preprocess(x) for x in valid_preds]
+        # valid_trg_sentences = [[sentence.split()] for sentence in valid_trg_sentences]
 
-        valid_bleu = calc_bleu(valid_preds, valid_trg_sentences)
+        # valid_bleu = calc_bleu(valid_preds, valid_trg_sentences)
 
-        print(f"BLEU score for {subset} samples in validation set:", valid_bleu)
-        print("-" * 50)
+        # print(f"BLEU score for {subset} samples in validation set:", valid_bleu)
+        # print("-" * 50)
 
-        # Evaluate on test set
-        print("Start evaluating on test set...")
-        for sentence in test_src_sentences:
-            test_preds.append(predictor(sentence, max_len=max_len, beam_size=beam_size))
+        # # Evaluate on test set
+        # print("Start evaluating on test set...")
+        # for sentence in test_src_sentences:
+        #     test_preds.append(predictor(sentence, max_len=max_len, beam_size=beam_size))
 
-        test_preds = [trg_field.preprocess(x) for x in test_preds]
-        test_trg_sentences = [[sentence.split()] for sentence in test_trg_sentences]
+        # test_preds = [trg_field.preprocess(x) for x in test_preds]
+        # test_trg_sentences = [[sentence.split()] for sentence in test_trg_sentences]
 
-        test_bleu = calc_bleu(test_preds, test_trg_sentences)
+        # test_bleu = calc_bleu(test_preds, test_trg_sentences)
 
-        print(f"BLEU score for {subset} samples in test set:", test_bleu)
-        print("-" * 50)
+        # print(f"BLEU score for {subset} samples in test set:", test_bleu)
+        # print("-" * 50)
 
         # Save log
         os.makedirs(args.out_dir, exist_ok=True)
         with open(os.path.join(args.out_dir, "log.json"), "w") as f:
-            log = {
-                "valid_bleu": valid_bleu,
-                "test_bleu": test_bleu,
-                "subset": subset,
-            }
-            json.dump(log, f, indent=4)
+            # log = {
+            #     "valid_bleu": valid_bleu,
+            #     "test_bleu": test_bleu,
+            #     "subset": subset,
+            # }
+            # json.dump(log, f, indent=4)
+            json.dump(results, f, indent=4)
         print(f"Log is saved to {args.out_dir}/log.json")
 
     except Exception as e:
