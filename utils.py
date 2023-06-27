@@ -134,7 +134,7 @@ def preprocess_text(input: str) -> str:
 
     input = new_input
     
-    # Thrid step: remove not necessary spaces.
+    # Third step: remove unnecessary spaces.
     new_input = ''
     for char in input:
         if new_input and new_input[-1] == ' ' and char == ' ':
