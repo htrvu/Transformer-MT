@@ -20,10 +20,14 @@ class Tokenizer:
 
         Returns: List[str]: tokenized texts
         """
-        text = re.sub(r"[\*\"“”\n\\…\+\-\/\=\(\)‘•:\[\]\|’\!;]", " ", str(text))
+        # text = re.sub(r"[\*\"“”\n\\…\+\-\/\=\(\)‘•:\[\]\|’\!;]", " ", str(text))
+        text = re.sub(r"[\*\n\\\+\/\=•\|]", " ", str(text))
         text = re.sub(r"[ ]+", " ", text)
         text = re.sub(r"\!+", "!", text)
         text = re.sub(r"\,+", ",", text)
+        text = re.sub(r"\.+", ".", text)
+        text = re.sub(r"\:+", ":", text)
+        text = re.sub(r"\;+", ";", text)
         text = re.sub(r"\?+", "?", text)
         text = text.lower()
         try:
