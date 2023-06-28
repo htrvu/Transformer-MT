@@ -64,7 +64,8 @@ def preprocess_text(input: str) -> str:
         return l.isupper()
 
 
-    input += '.'
+    if input[-1].isdigit() or input[-1].lower().isalpha():
+        input += '.'
 
     # First step: replace special characters 
     check_list = ['\uFE16', '\uFE15', '\u0027','\u2018', '\u2019',
@@ -135,16 +136,37 @@ def preprocess_text(input: str) -> str:
     input = new_input
     
     # Thrid step: remove not necessary spaces.
-    new_input = ''
-    for char in input:
-        if new_input and new_input[-1] == ' ' and char == ' ':
-            continue
-        new_input += char
-    input = new_input
+    input = re.sub('\s+', ' ', input)
 
     return input
 
-def postprocess_text(output: str):
+def split_text_by_sens(text: str, max_len: int = 200):
+    '''
+    Split the input text by sentences. Each sentence is not longer than max_len words
+
+    Args:
+        - text (str): The text to split
+        - max_len (int): The maximum length of the sentence (default to 200)
+
+    Returns: List[str]: List of sentences
+    '''
+    text = text.strip()
+    text = re.sub(r"\.+", ".", text)
+    sens = text.split('.')
+    new_sens = []
+    for sen in sens:
+        sen = sen.strip()
+        words = sen.split(' ')
+        if len(sen) == 0 or len(words) == 0:
+            continue
+        if len(words) <= max_len:
+            new_sens.append(sen)
+        else:
+            raise Exception("The sentence is too long!")
+    return new_sens
+    
+
+def postprocess_text(output: str) -> str:
     '''
     Post process output sentence from model to display.
 
@@ -153,8 +175,6 @@ def postprocess_text(output: str):
 
     Returns: (str) output sentence
     '''
-    print(output)
-
     to_text = output
     to_text = re.sub('\s+', ' ', to_text)
 

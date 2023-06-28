@@ -103,10 +103,10 @@ def run_ui():
     # Input and output columns
     tmp, left_column, right_column, tmpp = st.columns([1, 2, 2, 1])
     with left_column:
-        st.write("**Input sentence (in English, less than 200 words):**")
+        st.write("**Input sentence (in English):**")
         input_text = st.text_area("", 
-                                  height=100, 
-                                  max_chars=max_len,
+                                  height=150, 
+                                  max_chars=max_len * 20,
                                   label_visibility="collapsed")
         
         # Button
@@ -118,8 +118,11 @@ def run_ui():
                 return
             else:
                 input_text = input_text.strip()
-                model_output_text = postprocess_text(load_model()(preprocess_text(input_text), max_len=max_len, beam_size=beam_size))
-                # Avoid fail to connect to Google Translate
+                splitted_sens = split_text_by_sens(input_text, max_len=max_len)
+                model_outputs = []
+                for sen in splitted_sens:
+                    model_outputs.append(load_model()(preprocess_text(sen), max_len=max_len, beam_size=beam_size))
+                model_output_text = postprocess_text(' '.join(model_outputs))
                 while True:
                     try:
                         gg_output_text = load_gg_trans().translate(input_text, lang_src='en', lang_tgt='vi').lower()
