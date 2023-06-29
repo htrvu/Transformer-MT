@@ -64,8 +64,8 @@ def preprocess_text(input: str) -> str:
         return l.isupper()
 
 
-    if input[-1].isdigit() or input[-1].lower().isalpha():
-        input += '.'
+    # if input[-1].isdigit() or input[-1].lower().isalpha():
+    input += '.'
 
     # First step: replace special characters 
     check_list = ['\uFE16', '\uFE15', '\u0027','\u2018', '\u2019',
@@ -179,10 +179,11 @@ def postprocess_text(output: str) -> str:
     to_text = re.sub('\s+', ' ', to_text)
 
     to_text = to_text.replace('<EOS>', '').replace('<pad>', '')
-    to_text = to_text.replace('& quot', '"')
-    to_text = to_text.replace('& apos', "'")
-    to_text = to_text.replace('& # 91 ', "(")
-    to_text = to_text.replace(' & # 93', ")")
+    to_text = to_text.replace('& quot ;', '"')
+    to_text = to_text.replace(' : ', ': ')
+    to_text = to_text.replace('& apos ;', "'")
+    to_text = to_text.replace('& # 91 ; ', "(")
+    to_text = to_text.replace(' & # 93 ;', ")")
     to_text = to_text.split('\\')[0].strip()
 
     return to_text
