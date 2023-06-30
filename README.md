@@ -35,7 +35,7 @@ Expected structure:
 Run:
 
 ```bash
-streamlit run app.py ./runs/<folder_names>
+streamlit run app.py ./runs/<folder_name>
 ```
 
 Screenshots:
