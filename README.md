@@ -79,7 +79,7 @@ python ./tools/train.py \
 With the result folder you get from training process, you can use it to evaluate the model with these command:
 
 ```bash
-python -u tools/eval.py \
+python tools/eval.py \
     --runs_path ./runs/2023-06-28_16-57-19 \
     --beam-size 3 \
     --device cuda:0
