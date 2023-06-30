@@ -19,8 +19,8 @@ if __name__ == "__main__":
             --config_path ./configs/_base_.yaml \
             --train_src_path ./data/train.en \
             --train_trg_path ./data/train.vi \
-            --valid_src_path ./data/tst2013.en \
-            --valid_trg_path ./data/tst2013.vi \
+            --valid_src_path ./data/val.en \
+            --valid_trg_path ./data/val.vi \
             --device cuda:0
     """
     parser = argparse.ArgumentParser()
