@@ -2,10 +2,12 @@
 
 This is our Final Project for the Statistical Learning Course at VNUHCM - University of Science.
 
+You can read our report at this link: [Google Drive](https://drive.google.com/file/d/15iLs7gSAMqKv3beIEtNWYJMKXnyr6WWL/view?usp=sharing) (detailed explanation about Transformer)
+
 ## 1. Installation
 <span id='install'></span>
 
-You should have CUDA installed with version >= 11.1.
+You should have CUDA installed with version 11.x.
 
 Installation commands:
 
